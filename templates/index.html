@@ -308,30 +308,77 @@
         function visualizeKG(entities, relations, triples) {
             const container = document.getElementById('graph');
             
+            console.log('可视化数据:', {entities, relations, triples});
+            
+            // 清空现有数据
+            if (network) {
+                network.destroy();
+            }
+            
             // 创建节点
             nodes = new vis.DataSet();
             entities.forEach((entity, index) => {
-                nodes.add({
+                const node = {
                     id: entity,
                     label: entity,
-                    color: {background: '#4e54c8', border: '#3f46b8'},
-                    font: {color: 'white', size: 14},
-                    size: 20
-                });
+                    color: {
+                        background: '#4e54c8',
+                        border: '#3f46b8',
+                        highlight: {
+                            background: '#6c7ce0',
+                            border: '#5a6bd8'
+                        }
+                    },
+                    font: {
+                        color: 'white',
+                        size: 16,
+                        face: 'Microsoft YaHei, Arial',
+                        strokeWidth: 3,
+                        strokeColor: '#2c3e50'
+                    },
+                    size: 25,
+                    shape: 'dot',
+                    borderWidth: 2
+                };
+                console.log('创建节点:', node);
+                nodes.add(node);
             });
 
             // 创建边
             edges = new vis.DataSet();
             triples.forEach((triple, index) => {
-                edges.add({
+                const edge = {
                     from: triple[0],
                     to: triple[2],
                     label: triple[1],
-                    color: {color: '#8f94fb'},
-                    font: {color: '#4e54c8', size: 12},
-                    arrows: 'to',
-                    smooth: {type: 'dynamic'}
-                });
+                    color: {
+                        color: '#8f94fb',
+                        highlight: '#a5b3f5',
+                        hover: '#95a5e5'
+                    },
+                    font: {
+                        color: '#2c3e50',
+                        size: 14,
+                        face: 'Microsoft YaHei, Arial',
+                        strokeWidth: 2,
+                        strokeColor: 'white',
+                        background: 'rgba(255, 255, 255, 0.8)'
+                    },
+                    arrows: {
+                        to: {
+                            enabled: true,
+                            scaleFactor: 1.2,
+                            type: 'arrow'
+                        }
+                    },
+                    smooth: {
+                        type: 'dynamic',
+                        roundness: 0.2
+                    },
+                    width: 2
+                };
+                console.log('创建边:', edge);
+                edges.add(edge);
             });
 
             const data = {nodes: nodes, edges: edges};
@@ -341,26 +388,85 @@
                     scaling: {
                         min: 20,
                         max: 30
+                    },
+                    font: {
+                        size: 16,
+                        face: 'Microsoft YaHei, Arial',
+                        color: 'white'
+                    },
+                    borderWidth: 2,
+                    shadow: true,
+                    chosen: {
+                        node: function(values, id, selected, hovering) {
+                            values.shadowSize = 15;
+                            values.shadowColor = 'rgba(0,0,0,0.5)';
+                        }
                     }
                 },
                 edges: {
                     scaling: {
                         min: 1,
                         max: 2
+                    },
+                    smooth: {
+                        enabled: true,
+                        type: 'dynamic',
+                        roundness: 0.2
+                    },
+                    font: {
+                        size: 14,
+                        face: 'Microsoft YaHei, Arial',
+                        background: 'rgba(255, 255, 255, 0.9)',
+                        strokeWidth: 3,
+                        strokeColor: 'white'
+                    },
+                    shadow: true,
+                    chosen: {
+                        edge: function(values, id, selected, hovering) {
+                            values.width = 3;
+                            values.shadowSize = 10;
+                        }
                     }
                 },
                 physics: {
+                    enabled: true,
                     forceAtlas2Based: {
                         gravitationalConstant: -26,
                         centralGravity: 0.005,
                         springLength: 230,
                         springConstant: 0.18
                     },
-                    solver: 'forceAtlas2Based'
+                    solver: 'forceAtlas2Based',
+                    stabilization: {
+                        enabled: true,
+                        iterations: 200
+                    }
+                },
+                interaction: {
+                    hover: true,
+                    tooltipDelay: 200,
+                    hideEdgesOnDrag: false,
+                    hideNodesOnDrag: false,
+                    navigationButtons: true,
+                    keyboard: true
                 }
             };
 
+            console.log('创建网络图...');
             network = new vis.Network(container, data, options);
+            
+            // 添加事件监听
+            network.on("afterDrawing", function() {
+                console.log('图形绘制完成');
+            });
+            
+            network.on("selectNode", function(params) {
+                console.log('选中节点:', params);
+            });
+            
+            network.on("selectEdge", function(params) {
+                console.log('选中边:', params);
+            });
             
             // 更新统计信息
             document.getElementById('nodeCount').textContent = entities.length;
