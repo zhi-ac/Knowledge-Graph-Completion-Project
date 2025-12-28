@@ -172,7 +172,7 @@ class TransE:
         
         print("训练完成！")
     
-    def predict_missing_links(self, entity: str, top_k: int = 10) -> List[Tuple[str, float]]:
+    def predict_missing_links(self, entity: str, top_k: int = 10) -> List[Tuple[str, str, str, float]]:
         """预测缺失链接"""
         # 确保嵌入向量与知识图谱同步
         if not self.check_embeddings_sync():
@@ -192,21 +192,21 @@ class TransE:
         
         # 计算与其他实体的相似度
         for other_entity, other_id in self.kg.entity2id.items():
-            if other_entity != entity:
+            if other_entity != entity and other_id < self.entity_embeddings.shape[0]:
                 other_emb = self.entity_embeddings[other_id]
                 
                 # 计算所有可能的关系得分
                 for relation, rel_id in self.kg.relation2id.items():
-                    rel_emb = self.relation_embeddings[rel_id]
-                    
-                    # 计算预测得分 (distance越小，可能性越大)
-                    score = np.linalg.norm(entity_emb + rel_emb - other_emb)
-                    scores.append((other_entity, relation, score))
+                    if rel_id < self.relation_embeddings.shape[0]:
+                        rel_emb = self.relation_embeddings[rel_id]
+                        
+                        # 计算预测得分 (distance越小，可能性越大)
+                        score = np.linalg.norm(entity_emb + rel_emb - other_emb)
+                        scores.append((entity, relation, other_entity, score))
         
         # 按得分排序并返回top_k
-        scores.sort(key=lambda x: x[2])
-        return [(head if head == entity else tail, rel, score) 
-                for head, rel, score in scores[:top_k]]
+        scores.sort(key=lambda x: x[3])
+        return [(head, relation, tail, score) for head, relation, tail, score in scores[:top_k]]
     
     def complete_triple(self, head: str = None, relation: str = None, tail: str = None, 
                        top_k: int = 5) -> List[Tuple[str, float]]:

@@ -149,8 +149,8 @@ def predict_links():
         
         return jsonify({
             'status': 'success',
-            'results': [{'head': head, 'relation': rel, 'tail': tail, 'score': float(score)} 
-                       for head, rel, score in results]
+            'results': [{'head': head, 'relation': relation, 'tail': tail, 'score': float(score)} 
+                       for head, relation, tail, score in results]
         })
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)})
