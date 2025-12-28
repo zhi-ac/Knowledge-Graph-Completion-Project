@@ -115,15 +115,16 @@
     <div class="container-fluid">
         <div class="main-container">
             <div class="header">
-                <h1>🧠 知识图谱补全系统</h1>
-                <p class="lead mb-0">基于TransE算法的智能知识图谱补全平台</p>
+                <h1>[SYSTEM] 学者网知识图谱补全系统</h1>
+                <p class="lead mb-0">基于深度学习的智能知识图谱补全平台</p>
+                <!-- <p class="lead mb-0">基于TransE算法的智能知识图谱补全平台</p> -->
             </div>
 
             <!-- 系统状态 -->
             <div class="row mb-4">
                 <div class="col-12">
                     <div class="section-card">
-                        <h5 class="section-title">📊 系统状态</h5>
+                        <h5 class="section-title">[INFO] 系统状态</h5>
                         <div id="systemStatus" class="status-info">
                             <p class="mb-0">系统未初始化，请先初始化知识图谱。</p>
                         </div>
@@ -136,16 +137,25 @@
                 <div class="col-lg-4">
                     <!-- 初始化和训练 -->
                     <div class="section-card">
-                        <h5 class="section-title">⚙️ 模型控制</h5>
+                        <h5 class="section-title">[CONTROL] 模型控制</h5>
                         <div class="mb-3">
                             <button class="btn btn-primary w-100 mb-2" onclick="initKG()">
-                                🚀 初始化知识图谱
+                                [INIT] 初始化知识图谱
                             </button>
                             <button class="btn btn-primary w-100 mb-2" onclick="trainModel()">
-                                🎯 训练模型
+                                [TRAIN] 训练模型
                             </button>
-                            <button class="btn btn-info w-100" onclick="getKGInfo()">
-                                📋 获取图谱信息
+                            <button class="btn btn-info w-100 mb-2" onclick="getKGInfo()">
+                                [INFO] 获取图谱信息
+                            </button>
+                            <button class="btn btn-warning w-100 mb-2" onclick="getDatabaseStatus()">
+                                [DB] 数据库状态
+                            </button>
+                            <button class="btn btn-success w-100 mb-2" onclick="syncToDatabase()">
+                                [SYNC] 同步到数据库
+                            </button>
+                            <button class="btn btn-secondary w-100" onclick="loadFromDatabase()">
+                                [LOAD] 从数据库加载
                             </button>
                         </div>
                         <div class="loading" id="loadingInit">
@@ -158,7 +168,7 @@
 
                     <!-- 添加三元组 -->
                     <div class="section-card">
-                        <h5 class="section-title">➕ 添加三元组</h5>
+                        <h5 class="section-title">[ADD] 添加三元组</h5>
                         <form id="addTripleForm">
                             <div class="mb-3">
                                 <input type="text" class="form-control" id="newHead" placeholder="头实体" required>
@@ -169,13 +179,13 @@
                             <div class="mb-3">
                                 <input type="text" class="form-control" id="newTail" placeholder="尾实体" required>
                             </div>
-                            <button type="submit" class="btn btn-success w-100">➕ 添加</button>
+                            <button type="submit" class="btn btn-success w-100">[ADD] 添加</button>
                         </form>
                     </div>
 
                     <!-- 知识图谱补全 -->
                     <div class="section-card">
-                        <h5 class="section-title">🔮 知识图谱补全</h5>
+                        <h5 class="section-title">[COMPLETE] 知识图谱补全</h5>
                         <form id="completionForm">
                             <div class="mb-3">
                                 <input type="text" class="form-control" id="headEntity" placeholder="头实体 (可选)">
@@ -186,19 +196,19 @@
                             <div class="mb-3">
                                 <input type="text" class="form-control" id="tailEntity" placeholder="尾实体 (可选)">
                             </div>
-                            <button type="submit" class="btn btn-warning w-100">🔮 补全</button>
+                            <button type="submit" class="btn btn-warning w-100">[COMPLETE] 补全</button>
                         </form>
                         <div id="completionResults"></div>
                     </div>
 
                     <!-- 链接预测 -->
                     <div class="section-card">
-                        <h5 class="section-title">🔗 链接预测</h5>
+                        <h5 class="section-title">[PREDICT] 链接预测</h5>
                         <form id="predictionForm">
                             <div class="mb-3">
                                 <input type="text" class="form-control" id="predictEntity" placeholder="实体名称" required>
                             </div>
-                            <button type="submit" class="btn btn-info w-100">🔗 预测</button>
+                            <button type="submit" class="btn btn-info w-100">[PREDICT] 预测</button>
                         </form>
                         <div id="predictionResults"></div>
                     </div>
@@ -207,13 +217,13 @@
                 <!-- 右侧可视化面板 -->
                 <div class="col-lg-8">
                     <div class="section-card">
-                        <h5 class="section-title">🌐 知识图谱可视化</h5>
+                        <h5 class="section-title">[VISUAL] 知识图谱可视化</h5>
                         <div id="graph"></div>
                         <div class="graph-controls">
                             <div class="row">
                                 <div class="col-md-6">
                                     <button class="btn btn-outline-primary btn-sm" onclick="fitNetwork()">
-                                        🎯 适应视图
+                                        [FIT] 适应视图
                                     </button>
                                 </div>
                                 <div class="col-md-6 text-end">
@@ -256,13 +266,13 @@
                 const data = await response.json();
                 
                 if (data.status === 'success') {
-                    updateStatus(`✅ ${data.message} | 实体: ${data.entity_count} | 关系: ${data.relation_count} | 三元组: ${data.triple_count}`, 'success');
+                    updateStatus(`[SUCCESS] ${data.message} | 实体: ${data.entity_count} | 关系: ${data.relation_count} | 三元组: ${data.triple_count}`, 'success');
                     await getKGInfo();
                 } else {
-                    updateStatus(`❌ ${data.message}`, 'error');
+                    updateStatus(`[ERROR] ${data.message}`, 'error');
                 }
             } catch (error) {
-                updateStatus(`❌ 初始化失败: ${error.message}`, 'error');
+                updateStatus(`[ERROR] 初始化失败: ${error.message}`, 'error');
             } finally {
                 document.getElementById('loadingInit').style.display = 'none';
             }
@@ -271,7 +281,7 @@
         // 训练模型
         async function trainModel() {
             try {
-                updateStatus('🎯 正在训练模型...', 'info');
+                updateStatus('[TRAINING] 正在训练模型...', 'info');
                 const response = await fetch('/api/kg/train', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
@@ -280,12 +290,12 @@
                 const data = await response.json();
                 
                 if (data.status === 'success') {
-                    updateStatus(`✅ ${data.message}`, 'success');
+                    updateStatus(`[SUCCESS] ${data.message}`, 'success');
                 } else {
-                    updateStatus(`❌ ${data.message}`, 'error');
+                    updateStatus(`[ERROR] ${data.message}`, 'error');
                 }
             } catch (error) {
-                updateStatus(`❌ 训练失败: ${error.message}`, 'error');
+                updateStatus(`[ERROR] 训练失败: ${error.message}`, 'error');
             }
         }
 
@@ -300,7 +310,7 @@
                     displayKGDetails(data);
                 }
             } catch (error) {
-                updateStatus(`❌ 获取信息失败: ${error.message}`, 'error');
+                updateStatus(`[ERROR] 获取信息失败: ${error.message}`, 'error');
             }
         }
 
@@ -346,7 +356,20 @@
 
             // 创建边
             edges = new vis.DataSet();
+            const processedEdges = new Set(); // 用于去重
+            
             triples.forEach((triple, index) => {
+                // 创建边的唯一标识符（head-relation-tail）
+                const edgeKey = `${triple[0]}-${triple[1]}-${triple[2]}`;
+                
+                // 如果这条边已经处理过，跳过
+                if (processedEdges.has(edgeKey)) {
+                    console.log('跳过重复边:', edgeKey);
+                    return;
+                }
+                
+                processedEdges.add(edgeKey);
+                
                 const edge = {
                     from: triple[0],
                     to: triple[2],
@@ -542,14 +565,14 @@
                 const data = await response.json();
                 
                 if (data.status === 'success') {
-                    updateStatus(`✅ ${data.message}`, 'success');
+                    updateStatus(`[SUCCESS] ${data.message}`, 'success');
                     e.target.reset();
                     await getKGInfo();
                 } else {
-                    updateStatus(`❌ ${data.message}`, 'error');
+                    updateStatus(`[ERROR] ${data.message}`, 'error');
                 }
             } catch (error) {
-                updateStatus(`❌ 添加失败: ${error.message}`, 'error');
+                updateStatus(`[ERROR] 添加失败: ${error.message}`, 'error');
             }
         });
 
@@ -571,7 +594,7 @@
                 const resultsDiv = document.getElementById('completionResults');
                 if (data.status === 'success') {
                     resultsDiv.innerHTML = `
-                        <h6 class="mt-3">🎯 补全结果:</h6>
+                        <h6 class="mt-3">[RESULT] 补全结果:</h6>
                         ${data.results.map(r => `
                             <div class="result-item fade-in">
                                 <strong>${r.entity}</strong> (相似度: ${r.score.toFixed(3)})
@@ -582,7 +605,7 @@
                     resultsDiv.innerHTML = `<div class="alert alert-danger">${data.message}</div>`;
                 }
             } catch (error) {
-                updateStatus(`❌ 补全失败: ${error.message}`, 'error');
+                updateStatus(`[ERROR] 补全失败: ${error.message}`, 'error');
             }
         });
 
@@ -602,7 +625,7 @@
                 const resultsDiv = document.getElementById('predictionResults');
                 if (data.status === 'success') {
                     resultsDiv.innerHTML = `
-                        <h6 class="mt-3">🔗 预测结果:</h6>
+                        <h6 class="mt-3">[RESULT] 预测结果:</h6>
                         ${data.results.map(r => `
                             <div class="result-item fade-in">
                                 ${r.head} → <strong>${r.relation}</strong> → ${r.tail} (置信度: ${(1-r.score).toFixed(3)})
@@ -613,13 +636,124 @@
                     resultsDiv.innerHTML = `<div class="alert alert-danger">${data.message}</div>`;
                 }
             } catch (error) {
-                updateStatus(`❌ 预测失败: ${error.message}`, 'error');
+                updateStatus(`[ERROR] 预测失败: ${error.message}`, 'error');
             }
         });
 
+        // 数据库状态
+        async function getDatabaseStatus() {
+            try {
+                const response = await fetch('/api/database/status');
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    const dbStatus = data.database;
+                    const memStats = data.memory_stats;
+                    
+                    let statusHTML = '<h6>[DB] 数据库状态</h6>';
+                    
+                    if (dbStatus.status === 'available') {
+                        statusHTML += `
+                            <div class="alert alert-success">
+                                <strong>[SUCCESS] 数据库连接正常</strong><br>
+                                实体: ${dbStatus.entity_count} | 关系: ${dbStatus.relation_count} | 
+                                三元组: ${dbStatus.triple_count} | 嵌入向量: ${dbStatus.embedding_count}
+                            </div>
+                        `;
+                    } else if (dbStatus.status === 'database_unavailable') {
+                        statusHTML += `
+                            <div class="alert alert-warning">
+                                <strong>[INFO] 当前使用内存模式</strong><br>
+                                实体: ${memStats.entity_count} | 关系: ${memStats.relation_count} | 
+                                三元组: ${memStats.triple_count}
+                            </div>
+                        `;
+                    } else {
+                        statusHTML += `
+                            <div class="alert alert-danger">
+                                <strong>[ERROR] 数据库连接失败</strong><br>
+                                ${dbStatus.message || '未知错误'}
+                            </div>
+                        `;
+                    }
+                    
+                    statusHTML += `
+                        <div class="mt-2">
+                            <small class="text-muted">
+                                内存: ${memStats.entity_count}实体 | ${memStats.relation_count}关系 | ${memStats.triple_count}三元组
+                            </small>
+                        </div>
+                    `;
+                    
+                    updateStatus(statusHTML, 'info');
+                } else {
+                    updateStatus(`[ERROR] 获取数据库状态失败: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                updateStatus(`[ERROR] 数据库状态查询失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 同步到数据库
+        async function syncToDatabase() {
+            try {
+                updateStatus('[SYNC] 正在同步到数据库...', 'info');
+                
+                const response = await fetch('/api/database/sync', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'}
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    updateStatus(`[SUCCESS] ${data.message}`, 'success');
+                    await getDatabaseStatus();
+                } else {
+                    updateStatus(`[ERROR] 同步失败: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                updateStatus(`[ERROR] 同步失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 从数据库加载
+        async function loadFromDatabase() {
+            try {
+                updateStatus('[LOAD] 正在从数据库加载...', 'info');
+                
+                const response = await fetch('/api/database/load', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({use_database: true})
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    updateStatus(`[SUCCESS] ${data.message}`, 'success');
+                    
+                    // 刷新可视化
+                    visualizeKG(
+                        Array.from({length: data.entity_count}, (_, i) => `entity_${i}`),
+                        Array.from({length: data.relation_count}, (_, i) => `relation_${i}`),
+                        []
+                    );
+                    
+                    // 获取详细数据
+                    await getKGInfo();
+                    await getDatabaseStatus();
+                } else {
+                    updateStatus(`[ERROR] 加载失败: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                updateStatus(`[ERROR] 加载失败: ${error.message}`, 'error');
+            }
+        }
+
         // 页面加载时初始化
         window.addEventListener('load', () => {
-            updateStatus('🚀 系统已就绪，请点击"初始化知识图谱"开始。', 'info');
+            updateStatus('[READY] 系统已就绪，支持数据库存储！', 'info');
         });
     </script>
 </body>
