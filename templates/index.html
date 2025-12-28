@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>知识图谱补全系统</title>
+    <script src="https://cdn.jsdelivr.net/npm/vis-network@9.1.2/dist/vis-network.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/vis-network@9.1.2/dist/dist/vis-network.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+        }
+        .main-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            margin: 20px auto;
+            max-width: 1400px;
+            padding: 30px;
+        }
+        .header {
+            text-align: center;
+            background: linear-gradient(45deg, #4e54c8, #8f94fb);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(78, 84, 200, 0.3);
+        }
+        .section-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            border: 1px solid #e0e0e0;
+        }
+        .section-title {
+            color: #4e54c8;
+            font-weight: bold;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e8e8e8;
+        }
+        #graph {
+            height: 500px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            background: #fafafa;
+        }
+        .btn-primary {
+            background: linear-gradient(45deg, #4e54c8, #8f94fb);
+            border: none;
+            border-radius: 8px;
+            padding: 10px 25px;
+            transition: all 0.3s ease;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(78, 84, 200, 0.4);
+            background: linear-gradient(45deg, #3f46b8, #7f85f0);
+        }
+        .form-control, .form-select {
+            border-radius: 8px;
+            border: 2px solid #e0e0e0;
+            padding: 10px 15px;
+            transition: all 0.3s ease;
+        }
+        .form-control:focus, .form-select:focus {
+            border-color: #4e54c8;
+            box-shadow: 0 0 0 0.2rem rgba(78, 84, 200, 0.25);
+        }
+        .result-item {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 10px 0;
+            border-left: 4px solid #4e54c8;
+        }
+        .status-info {
+            background: linear-gradient(135deg, #e3ffe7 0%, #d9e7ff 100%);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 15px 0;
+            border-left: 4px solid #28a745;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        .spinner-border {
+            width: 2rem;
+            height: 2rem;
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .graph-controls {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="main-container">
+            <div class="header">
+                <h1>🧠 知识图谱补全系统</h1>
+                <p class="lead mb-0">基于TransE算法的智能知识图谱补全平台</p>
+            </div>
+
+            <!-- 系统状态 -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="section-card">
+                        <h5 class="section-title">📊 系统状态</h5>
+                        <div id="systemStatus" class="status-info">
+                            <p class="mb-0">系统未初始化，请先初始化知识图谱。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <!-- 左侧控制面板 -->
+                <div class="col-lg-4">
+                    <!-- 初始化和训练 -->
+                    <div class="section-card">
+                        <h5 class="section-title">⚙️ 模型控制</h5>
+                        <div class="mb-3">
+                            <button class="btn btn-primary w-100 mb-2" onclick="initKG()">
+                                🚀 初始化知识图谱
+                            </button>
+                            <button class="btn btn-primary w-100 mb-2" onclick="trainModel()">
+                                🎯 训练模型
+                            </button>
+                            <button class="btn btn-info w-100" onclick="getKGInfo()">
+                                📋 获取图谱信息
+                            </button>
+                        </div>
+                        <div class="loading" id="loadingInit">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2 mb-0">正在初始化...</p>
+                        </div>
+                    </div>
+
+                    <!-- 添加三元组 -->
+                    <div class="section-card">
+                        <h5 class="section-title">➕ 添加三元组</h5>
+                        <form id="addTripleForm">
+                            <div class="mb-3">
+                                <input type="text" class="form-control" id="newHead" placeholder="头实体" required>
+                            </div>
+                            <div class="mb-3">
+                                <input type="text" class="form-control" id="newRelation" placeholder="关系" required>
+                            </div>
+                            <div class="mb-3">
+                                <input type="text" class="form-control" id="newTail" placeholder="尾实体" required>
+                            </div>
+                            <button type="submit" class="btn btn-success w-100">➕ 添加</button>
+                        </form>
+                    </div>
+
+                    <!-- 知识图谱补全 -->
+                    <div class="section-card">
+                        <h5 class="section-title">🔮 知识图谱补全</h5>
+                        <form id="completionForm">
+                            <div class="mb-3">
+                                <input type="text" class="form-control" id="headEntity" placeholder="头实体 (可选)">
+                            </div>
+                            <div class="mb-3">
+                                <input type="text" class="form-control" id="relation" placeholder="关系">
+                            </div>
+                            <div class="mb-3">
+                                <input type="text" class="form-control" id="tailEntity" placeholder="尾实体 (可选)">
+                            </div>
+                            <button type="submit" class="btn btn-warning w-100">🔮 补全</button>
+                        </form>
+                        <div id="completionResults"></div>
+                    </div>
+
+                    <!-- 链接预测 -->
+                    <div class="section-card">
+                        <h5 class="section-title">🔗 链接预测</h5>
+                        <form id="predictionForm">
+                            <div class="mb-3">
+                                <input type="text" class="form-control" id="predictEntity" placeholder="实体名称" required>
+                            </div>
+                            <button type="submit" class="btn btn-info w-100">🔗 预测</button>
+                        </form>
+                        <div id="predictionResults"></div>
+                    </div>
+                </div>
+
+                <!-- 右侧可视化面板 -->
+                <div class="col-lg-8">
+                    <div class="section-card">
+                        <h5 class="section-title">🌐 知识图谱可视化</h5>
+                        <div id="graph"></div>
+                        <div class="graph-controls">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <button class="btn btn-outline-primary btn-sm" onclick="fitNetwork()">
+                                        🎯 适应视图
+                                    </button>
+                                </div>
+                                <div class="col-md-6 text-end">
+                                    <small class="text-muted">
+                                        节点数: <span id="nodeCount">0</span> | 
+                                        边数: <span id="edgeCount">0</span>
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 知识图谱信息 -->
+                    <div class="section-card">
+                        <h5 class="section-title">📈 图谱详细信息</h5>
+                        <div id="kgDetails" class="text-muted">
+                            <p class="text-center">请先初始化知识图谱。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let network = null;
+        let nodes = null;
+        let edges = null;
+
+        // 初始化知识图谱
+        async function initKG() {
+            document.getElementById('loadingInit').style.display = 'block';
+            try {
+                const response = await fetch('/api/kg/init', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({use_sample: true})
+                });
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    updateStatus(`✅ ${data.message} | 实体: ${data.entity_count} | 关系: ${data.relation_count} | 三元组: ${data.triple_count}`, 'success');
+                    await getKGInfo();
+                } else {
+                    updateStatus(`❌ ${data.message}`, 'error');
+                }
+            } catch (error) {
+                updateStatus(`❌ 初始化失败: ${error.message}`, 'error');
+            } finally {
+                document.getElementById('loadingInit').style.display = 'none';
+            }
+        }
+
+        // 训练模型
+        async function trainModel() {
+            try {
+                updateStatus('🎯 正在训练模型...', 'info');
+                const response = await fetch('/api/kg/train', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({epochs: 100, learning_rate: 0.01})
+                });
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    updateStatus(`✅ ${data.message}`, 'success');
+                } else {
+                    updateStatus(`❌ ${data.message}`, 'error');
+                }
+            } catch (error) {
+                updateStatus(`❌ 训练失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 获取知识图谱信息
+        async function getKGInfo() {
+            try {
+                const response = await fetch('/api/kg/info');
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    visualizeKG(data.entities, data.relations, data.triples);
+                    displayKGDetails(data);
+                }
+            } catch (error) {
+                updateStatus(`❌ 获取信息失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 可视化知识图谱
+        function visualizeKG(entities, relations, triples) {
+            const container = document.getElementById('graph');
+            
+            // 创建节点
+            nodes = new vis.DataSet();
+            entities.forEach((entity, index) => {
+                nodes.add({
+                    id: entity,
+                    label: entity,
+                    color: {background: '#4e54c8', border: '#3f46b8'},
+                    font: {color: 'white', size: 14},
+                    size: 20
+                });
+            });
+
+            // 创建边
+            edges = new vis.DataSet();
+            triples.forEach((triple, index) => {
+                edges.add({
+                    from: triple[0],
+                    to: triple[2],
+                    label: triple[1],
+                    color: {color: '#8f94fb'},
+                    font: {color: '#4e54c8', size: 12},
+                    arrows: 'to',
+                    smooth: {type: 'dynamic'}
+                });
+            });
+
+            const data = {nodes: nodes, edges: edges};
+            const options = {
+                nodes: {
+                    shape: 'dot',
+                    scaling: {
+                        min: 20,
+                        max: 30
+                    }
+                },
+                edges: {
+                    scaling: {
+                        min: 1,
+                        max: 2
+                    }
+                },
+                physics: {
+                    forceAtlas2Based: {
+                        gravitationalConstant: -26,
+                        centralGravity: 0.005,
+                        springLength: 230,
+                        springConstant: 0.18
+                    },
+                    solver: 'forceAtlas2Based'
+                }
+            };
+
+            network = new vis.Network(container, data, options);
+            
+            // 更新统计信息
+            document.getElementById('nodeCount').textContent = entities.length;
+            document.getElementById('edgeCount').textContent = triples.length;
+        }
+
+        // 适应视图
+        function fitNetwork() {
+            if (network) {
+                network.fit();
+            }
+        }
+
+        // 显示图谱详细信息
+        function displayKGDetails(data) {
+            const detailsDiv = document.getElementById('kgDetails');
+            detailsDiv.innerHTML = `
+                <div class="row fade-in">
+                    <div class="col-md-4">
+                        <div class="text-center">
+                            <h4 class="text-primary">${data.entity_count}</h4>
+                            <p>实体数量</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="text-center">
+                            <h4 class="text-info">${data.relation_count}</h4>
+                            <p>关系数量</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="text-center">
+                            <h4 class="text-success">${data.triple_count}</h4>
+                            <p>三元组数量</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <h6>实体列表:</h6>
+                    <div class="d-flex flex-wrap">
+                        ${data.entities.map(e => `<span class="badge bg-primary m-1">${e}</span>`).join('')}
+                    </div>
+                    <h6 class="mt-3">关系列表:</h6>
+                    <div class="d-flex flex-wrap">
+                        ${data.relations.map(r => `<span class="badge bg-info m-1">${r}</span>`).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        // 更新状态
+        function updateStatus(message, type) {
+            const statusDiv = document.getElementById('systemStatus');
+            const alertClass = type === 'success' ? 'alert-success' : 
+                              type === 'error' ? 'alert-danger' : 'alert-info';
+            statusDiv.className = `alert ${alertClass} status-info fade-in`;
+            statusDiv.innerHTML = `<p class="mb-0">${message}</p>`;
+        }
+
+        // 添加三元组表单提交
+        document.getElementById('addTripleForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const head = document.getElementById('newHead').value;
+            const relation = document.getElementById('newRelation').value;
+            const tail = document.getElementById('newTail').value;
+            
+            try {
+                const response = await fetch('/api/kg/add_triple', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({head, relation, tail})
+                });
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    updateStatus(`✅ ${data.message}`, 'success');
+                    e.target.reset();
+                    await getKGInfo();
+                } else {
+                    updateStatus(`❌ ${data.message}`, 'error');
+                }
+            } catch (error) {
+                updateStatus(`❌ 添加失败: ${error.message}`, 'error');
+            }
+        });
+
+        // 补全表单提交
+        document.getElementById('completionForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const head = document.getElementById('headEntity').value;
+            const relation = document.getElementById('relation').value;
+            const tail = document.getElementById('tailEntity').value;
+            
+            try {
+                const response = await fetch('/api/kg/complete', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({head, relation, tail, top_k: 5})
+                });
+                const data = await response.json();
+                
+                const resultsDiv = document.getElementById('completionResults');
+                if (data.status === 'success') {
+                    resultsDiv.innerHTML = `
+                        <h6 class="mt-3">🎯 补全结果:</h6>
+                        ${data.results.map(r => `
+                            <div class="result-item fade-in">
+                                <strong>${r.entity}</strong> (相似度: ${r.score.toFixed(3)})
+                            </div>
+                        `).join('')}
+                    `;
+                } else {
+                    resultsDiv.innerHTML = `<div class="alert alert-danger">${data.message}</div>`;
+                }
+            } catch (error) {
+                updateStatus(`❌ 补全失败: ${error.message}`, 'error');
+            }
+        });
+
+        // 预测表单提交
+        document.getElementById('predictionForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const entity = document.getElementById('predictEntity').value;
+            
+            try {
+                const response = await fetch('/api/kg/predict', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({entity, top_k: 10})
+                });
+                const data = await response.json();
+                
+                const resultsDiv = document.getElementById('predictionResults');
+                if (data.status === 'success') {
+                    resultsDiv.innerHTML = `
+                        <h6 class="mt-3">🔗 预测结果:</h6>
+                        ${data.results.map(r => `
+                            <div class="result-item fade-in">
+                                ${r.head} → <strong>${r.relation}</strong> → ${r.tail} (置信度: ${(1-r.score).toFixed(3)})
+                            </div>
+                        `).join('')}
+                    `;
+                } else {
+                    resultsDiv.innerHTML = `<div class="alert alert-danger">${data.message}</div>`;
+                }
+            } catch (error) {
+                updateStatus(`❌ 预测失败: ${error.message}`, 'error');
+            }
+        });
+
+        // 页面加载时初始化
+        window.addEventListener('load', () => {
+            updateStatus('🚀 系统已就绪，请点击"初始化知识图谱"开始。', 'info');
+        });
+    </script>
+</body>
+</html>
