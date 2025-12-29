@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>三元组管理 - 知识图谱补全系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+        }
+        .main-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            margin: 20px auto;
+            max-width: 1200px;
+            padding: 30px;
+        }
+        .header {
+            text-align: center;
+            background: linear-gradient(45deg, #4e54c8, #8f94fb);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+        }
+        .nav-link {
+            color: white;
+            text-decoration: none;
+            margin: 0 10px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+        .nav-link:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-1px);
+        }
+        .nav-link.active {
+            background: rgba(255, 255, 255, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="main-container">
+            <!-- 导航栏 -->
+            <div class="header">
+                <h1>[TRIPLE] 三元组管理</h1>
+                <p class="lead mb-0">管理和查看知识图谱中的所有三元组</p>
+                <nav class="mt-3">
+                    <a href="/" class="nav-link">[HOME] 主页</a>
+                    <a href="/entity-management" class="nav-link">[ENTITY] 实体管理</a>
+                    <a href="/relation-management" class="nav-link">[RELATION] 关系管理</a>
+                    <a href="/triple-management" class="nav-link active">[TRIPLE] 三元组管理</a>
+                    <a href="/model-management" class="nav-link">[MODEL] 模型训练</a>
+                    <a href="/data-management" class="nav-link">[DATA] 数据管理</a>
+                    <a href="/analysis" class="nav-link">[ANALYSIS] 补全分析</a>
+                </nav>
+            </div>
+            <!-- 主要内容 -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>知识图谱状态</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="statusDiv">
+                                <p>正在检查状态...</p>
+                            </div>
+                            <div class="mt-3">
+                                <button class="btn btn-primary" onclick="initKG()">初始化知识图谱</button>
+                                <button class="btn btn-success ms-2" onclick="loadTriples()">加载三元组</button>
+                                <button class="btn btn-warning ms-2" onclick="showAddTripleModal()">添加三元组</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>三元组列表</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="triplesList">
+                                <p>请先初始化知识图谱</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function loadTriples() {
+            fetch('/api/kg/info')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        const triples = data.triples || [];
+                        displayTriples(triples);
+                    } else {
+                        console.error('知识图谱未初始化');
+                        showAlert('请先初始化知识图谱', 'warning');
+                    }
+                })
+                .catch(error => {
+                    console.error('加载三元组失败:', error);
+                });
+        }
+
+        function displayTriples(triples) {
+            const container = document.getElementById('triplesList');
+            container.innerHTML = '';
+
+            if (triples.length === 0) {
+                container.innerHTML = '<p>暂无三元组数据</p>';
+                return;
+            }
+
+            const listHtml = triples.map(triple => {
+                // triple是元组格式 [head, relation, tail]
+                const head = triple[0];
+                const relation = triple[1];
+                const tail = triple[2];
+                return `<div class="card mb-2">
+                    <div class="card-body">
+                        <h6>${head} -- ${relation} --> ${tail}</h6>
+                        <p class="mb-0 text-muted">置信度: 1.0</p>
+                    </div>
+                </div>`;
+            }).join('');
+            
+            container.innerHTML = listHtml;
+        }
+
+        function initKG() {
+            fetch('/api/kg/init', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showAlert('知识图谱初始化成功', 'success');
+                    loadTriples();
+                } else {
+                    showAlert('初始化失败: ' + (data.message || '未知错误'), 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('初始化失败:', error);
+                showAlert('初始化失败', 'danger');
+            });
+        }
+
+        function showAddTripleModal() {
+            const head = prompt('请输入头实体:');
+            const relation = prompt('请输入关系:');
+            const tail = prompt('请输入尾实体:');
+            
+            if (head && relation && tail) {
+                addTriple(head, relation, tail);
+            }
+        }
+
+        function addTriple(head, relation, tail) {
+            fetch('/api/kg/add_triple', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    head: head,
+                    relation: relation,
+                    tail: tail
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showAlert('三元组添加成功', 'success');
+                    loadTriples();
+                } else {
+                    showAlert('添加失败', 'danger');
+                }
+            });
+        }
+
+        function showAlert(message, type) {
+            const statusDiv = document.getElementById('statusDiv');
+            statusDiv.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+        }
+
+        // 页面加载时检查状态
+        document.addEventListener('DOMContentLoaded', function() {
+            fetch('/api/database/status')
+                .then(response => response.json())
+                .then(data => {
+                    const statusDiv = document.getElementById('statusDiv');
+                    statusDiv.innerHTML = `<p>知识图谱状态: ${data.status || '未初始化'}</p>`;
+                });
+        });
+    </script>
+</body>
+</html>

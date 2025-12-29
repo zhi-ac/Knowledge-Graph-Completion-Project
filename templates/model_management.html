@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>模型训练管理 - 知识图谱补全系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+        }
+        .main-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            margin: 20px auto;
+            max-width: 1200px;
+            padding: 30px;
+        }
+        .header {
+            text-align: center;
+            background: linear-gradient(45deg, #4e54c8, #8f94fb);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+        }
+        .nav-link {
+            color: white;
+            text-decoration: none;
+            margin: 0 10px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+        .nav-link:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-1px);
+        }
+        .nav-link.active {
+            background: rgba(255, 255, 255, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="main-container">
+            <!-- 导航栏 -->
+            <div class="header">
+                <h1>[MODEL] 模型训练管理</h1>
+                <p class="lead mb-0">管理和训练知识图谱补全模型</p>
+                <nav class="mt-3">
+                    <a href="/" class="nav-link">[HOME] 主页</a>
+                    <a href="/entity-management" class="nav-link">[ENTITY] 实体管理</a>
+                    <a href="/relation-management" class="nav-link">[RELATION] 关系管理</a>
+                    <a href="/triple-management" class="nav-link">[TRIPLE] 三元组管理</a>
+                    <a href="/model-management" class="nav-link active">[MODEL] 模型训练</a>
+                    <a href="/data-management" class="nav-link">[DATA] 数据管理</a>
+                    <a href="/analysis" class="nav-link">[ANALYSIS] 补全分析</a>
+                </nav>
+            </div>
+            <!-- 主要内容 -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>模型训练管理</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="statusDiv">
+                                <p>正在检查模型状态...</p>
+                            </div>
+                            <div class="mt-3">
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label">训练轮数</label>
+                                        <input type="number" class="form-control" id="epochsInput" value="50" min="1" max="1000">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">学习率</label>
+                                        <input type="number" class="form-control" id="learningRateInput" value="0.01" min="0.001" max="1" step="0.001">
+                                    </div>
+                                </div>
+                                <button class="btn btn-primary" onclick="initKG()">初始化知识图谱</button>
+                                <button class="btn btn-success ms-2" onclick="trainModel()">训练模型</button>
+                                <button class="btn btn-info ms-2" onclick="checkModelStatus()">检查模型状态</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>训练历史</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="trainingHistory">
+                                <p>暂无训练记录</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function trainModel() {
+            const epochs = parseInt(document.getElementById('epochsInput').value) || 50;
+            const learningRate = parseFloat(document.getElementById('learningRateInput').value) || 0.01;
+            
+            fetch('/api/kg/train', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    epochs: epochs,
+                    learning_rate: learningRate
+                })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        showAlert('模型训练完成', 'success');
+                        checkModelStatus();
+                        addTrainingRecord(epochs, learningRate, 'N/A', 'N/A');
+                    } else {
+                        showAlert('训练失败: ' + (data.message || '未知错误'), 'danger');
+                    }
+                })
+                .catch(error => {
+                    console.error('训练失败:', error);
+                    showAlert('训练失败: ' + error.message, 'danger');
+                });
+        }
+
+        function checkModelStatus() {
+            Promise.all([
+                fetch('/api/kg/info'),
+                fetch('/api/kg/statistics')
+            ])
+            .then(responses => Promise.all(responses.map(res => res.json())))
+            .then(([kgData, statsData]) => {
+                const statusDiv = document.getElementById('statusDiv');
+                
+                let statusHtml = '';
+                
+                if (kgData.status === 'success') {
+                    statusHtml += `
+                        <div class="alert alert-success">
+                            <h6><i class="bi bi-check-circle"></i> 知识图谱状态</h6>
+                            <p class="mb-1"><strong>实体数量:</strong> ${kgData.entity_count || 0}</p>
+                            <p class="mb-1"><strong>关系数量:</strong> ${kgData.relation_count || 0}</p>
+                            <p class="mb-0"><strong>三元组数量:</strong> ${kgData.triple_count || 0}</p>
+                        </div>
+                    `;
+                    
+                    if (statsData.status === 'success') {
+                        const stats = statsData.basic_stats;
+                        statusHtml += `
+                            <div class="alert alert-info">
+                                <h6><i class="bi bi-graph-up"></i> 模型统计信息</h6>
+                                <p class="mb-1"><strong>平均实体度:</strong> ${(stats.triple_count / stats.entity_count).toFixed(2)}</p>
+                                <p class="mb-1"><strong>关系密度:</strong> ${(stats.triple_count / stats.relation_count).toFixed(2)}</p>
+                                <p class="mb-0"><strong>数据质量:</strong> ${stats.triple_count > 0 ? '良好' : '需要更多数据'}</p>
+                            </div>
+                        `;
+                    }
+                    
+                    statusHtml += `
+                        <div class="alert alert-warning">
+                            <h6><i class="bi bi-cpu"></i> 模型状态</h6>
+                            <p class="mb-0"><strong>TransE模型:</strong> 已准备就绪，可以进行训练或补全</p>
+                        </div>
+                    `;
+                    
+                } else {
+                    statusHtml = `
+                        <div class="alert alert-danger">
+                            <h6><i class="bi bi-exclamation-triangle"></i> 系统状态</h6>
+                            <p class="mb-0"><strong>知识图谱:</strong> ${kgData.message || '未初始化'}</p>
+                        </div>
+                    `;
+                }
+                
+                statusDiv.innerHTML = statusHtml;
+            })
+            .catch(error => {
+                console.error('检查模型状态失败:', error);
+                const statusDiv = document.getElementById('statusDiv');
+                statusDiv.innerHTML = `
+                    <div class="alert alert-danger">
+                        <h6><i class="bi bi-x-circle"></i> 状态检查失败</h6>
+                        <p class="mb-0"><strong>错误信息:</strong> ${error.message}</p>
+                    </div>
+                `;
+            });
+        }
+
+        function displayTrainingHistory(history) {
+            const container = document.getElementById('trainingHistory');
+            container.innerHTML = '';
+
+            if (history.length === 0) {
+                container.innerHTML = '<p>暂无训练记录</p>';
+                return;
+            }
+
+            const listHtml = history.map(record => 
+                `<div class="card mb-2">
+                    <div class="card-body">
+                        <h6>训练记录 - ${record.timestamp}</h6>
+                        <p class="mb-0 text-muted">轮数: ${record.epochs} | 学习率: ${record.learning_rate} | 损失: ${record.loss}</p>
+                    </div>
+                </div>`
+            ).join('');
+            
+            container.innerHTML = listHtml;
+        }
+
+        function addTrainingRecord(epochs, learningRate, loss, accuracy) {
+            const container = document.getElementById('trainingHistory');
+            const timestamp = new Date().toLocaleString();
+            
+            const recordHtml = `
+                <div class="card mb-2">
+                    <div class="card-body">
+                        <h6>训练记录 - ${timestamp}</h6>
+                        <p class="mb-0 text-muted">轮数: ${epochs} | 学习率: ${learningRate} | 损失: ${loss}</p>
+                    </div>
+                </div>
+            `;
+            
+            if (container.innerHTML === '<p>暂无训练记录</p>') {
+                container.innerHTML = recordHtml;
+            } else {
+                container.insertAdjacentHTML('afterbegin', recordHtml);
+            }
+        }
+
+        function initKG() {
+            fetch('/api/kg/init', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showAlert('知识图谱初始化成功', 'success');
+                    checkModelStatus();
+                } else {
+                    showAlert('初始化失败: ' + (data.message || '未知错误'), 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('初始化失败:', error);
+                showAlert('初始化失败', 'danger');
+            });
+        }
+
+        function showAlert(message, type) {
+            const statusDiv = document.getElementById('statusDiv');
+            statusDiv.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+        }
+
+        // 页面加载时检查状态
+        document.addEventListener('DOMContentLoaded', function() {
+            checkModelStatus();
+        });
+    </script>
+</body>
+</html>

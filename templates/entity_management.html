@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>实体管理 - 知识图谱补全系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+        }
+        .main-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            margin: 20px auto;
+            max-width: 1200px;
+            padding: 30px;
+        }
+        .header {
+            text-align: center;
+            background: linear-gradient(45deg, #4e54c8, #8f94fb);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(78, 84, 200, 0.3);
+        }
+        .section-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            border: 1px solid #e0e0e0;
+        }
+        .section-title {
+            color: #4e54c8;
+            font-weight: bold;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e8e8e8;
+        }
+        .btn-primary {
+            background: linear-gradient(45deg, #4e54c8, #8f94fb);
+            border: none;
+            border-radius: 8px;
+            padding: 10px 25px;
+            transition: all 0.3s ease;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(78, 84, 200, 0.4);
+            background: linear-gradient(45deg, #3f46b8, #7f85f0);
+        }
+        .entity-item {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 10px 0;
+            border-left: 4px solid #4e54c8;
+        }
+        .entity-image {
+            width: 50px;
+            height: 50px;
+            border-radius: 8px;
+            object-fit: cover;
+            border: 2px solid #e0e0e0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-right: 15px;
+        }
+        .entity-info {
+            flex-grow: 1;
+        }
+        .entity-type-badge {
+            background: #6c757d;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            margin-left: 8px;
+        }
+        .badge-count {
+            background: #4e54c8;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            margin-left: 8px;
+        }
+        .nav-link {
+            color: white;
+            text-decoration: none;
+            margin: 0 10px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+        .nav-link:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-1px);
+        }
+        .nav-link.active {
+            background: rgba(255, 255, 255, 0.4);
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .search-box {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="main-container">
+            <!-- 导航栏 -->
+            <div class="header">
+                <h1>[ENTITY] 实体管理</h1>
+                <p class="lead mb-0">管理和查看知识图谱中的所有实体</p>
+                <nav class="mt-3">
+                    <a href="/" class="nav-link">[HOME] 主页</a>
+                    <a href="/entity-management" class="nav-link active">[ENTITY] 实体管理</a>
+                    <a href="/analysis" class="nav-link">[ANALYSIS] 补全分析</a>
+                </nav>
+            </div>
+
+
+
+            <div class="row">
+                <!-- 搜索框 -->
+                <div class="col-12">
+                    <div class="search-box">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <input type="text" class="form-control" id="searchInput" placeholder="搜索实体...">
+                            </div>
+                            <div class="col-md-4">
+                                <select class="form-select" id="sortSelect">
+                                    <option value="name">按名称排序</option>
+                                    <option value="total">按使用次数排序</option>
+                                    <option value="head">按作为头实体排序</option>
+                                    <option value="tail">按作为尾实体排序</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 知识图谱状态检查 -->
+                <div class="col-12 mb-3">
+                    <div class="section-card">
+                        <h5 class="section-title">知识图谱状态</h5>
+                        <div id="kgStatus">
+                            <div class="text-center">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <p class="mt-2">正在检查知识图谱状态...</p>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <button class="btn btn-primary" onclick="initKG()">
+                                [INIT] 初始化知识图谱
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 实体列表 -->
+                <div class="col-12">
+                    <div class="section-card">
+                        <h5 class="section-title">实体列表</h5>
+                        <div id="entityList">
+                            <div class="text-center">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <p class="mt-2">正在加载实体数据...</p>
+                            </div>
+                        </div>
+                        
+                        <!-- 分页控制 -->
+                        <div id="pagination" class="mt-4">
+                            <nav>
+                                <ul class="pagination justify-content-center">
+                                    <!-- 分页将通过 JavaScript 动态生成 -->
+                                </ul>
+                            </nav>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 实体详情模态框 -->
+            <div class="modal fade" id="entityModal" tabindex="-1">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">实体详情</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div id="entityDetails">
+                                <!-- 实体详情将通过 JavaScript 动态生成 -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let allEntities = [];
+        let currentPage = 1;
+        const itemsPerPage = 20;
+
+        // 检查知识图谱状态
+        async function checkKGStatus() {
+            try {
+                const response = await fetch('/api/kg/info');
+                const data = await response.json();
+                
+                const statusDiv = document.getElementById('kgStatus');
+                
+                if (data.status === 'success') {
+                    statusDiv.innerHTML = `
+                        <div class="alert alert-success">
+                            <h6>知识图谱已初始化</h6>
+                            <p class="mb-0">
+                                实体: ${data.entity_count} | 
+                                关系: ${data.relation_count} | 
+                                三元组: ${data.triple_count}
+                            </p>
+                        </div>
+                    `;
+                    
+                    // 知识图谱已初始化，加载实体数据
+                    loadEntities();
+                } else {
+                    statusDiv.innerHTML = `
+                        <div class="alert alert-warning">
+                            <h6>知识图谱未初始化</h6>
+                            <p class="mb-0">${data.message}</p>
+                        </div>
+                    `;
+                    
+                    // 显示提示信息
+                    document.getElementById('entityList').innerHTML = 
+                        '<div class="text-center text-muted">请先初始化知识图谱</div>';
+                }
+            } catch (error) {
+                document.getElementById('kgStatus').innerHTML = 
+                    `<div class="alert alert-danger">状态检查失败: ${error.message}</div>`;
+            }
+        }
+
+        // 初始化知识图谱
+        async function initKG() {
+            try {
+                const response = await fetch('/api/kg/init', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({use_sample: true})
+                });
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    document.getElementById('kgStatus').innerHTML = `
+                        <div class="alert alert-success">
+                            <h6>知识图谱初始化成功</h6>
+                            <p class="mb-0">
+                                实体: ${data.entity_count} | 
+                                关系: ${data.relation_count} | 
+                                三元组: ${data.triple_count}
+                            </p>
+                        </div>
+                    `;
+                    
+                    // 初始化成功，加载实体数据
+                    loadEntities();
+                } else {
+                    document.getElementById('kgStatus').innerHTML = 
+                        `<div class="alert alert-danger">初始化失败: ${data.message}</div>`;
+                }
+            } catch (error) {
+                document.getElementById('kgStatus').innerHTML = 
+                    `<div class="alert alert-danger">初始化失败: ${error.message}</div>`;
+            }
+        }
+
+        // 加载实体数据
+        async function loadEntities() {
+            try {
+                const response = await fetch('/api/kg/entities');
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    allEntities = data.entities;
+                    displayEntities();
+                } else {
+                    document.getElementById('entityList').innerHTML = 
+                        `<div class="alert alert-danger">加载失败: ${data.message}</div>`;
+                }
+            } catch (error) {
+                document.getElementById('entityList').innerHTML = 
+                    `<div class="alert alert-danger">加载失败: ${error.message}</div>`;
+            }
+        }
+
+        // 显示实体列表
+        function displayEntities() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const sortBy = document.getElementById('sortSelect').value;
+            
+            // 过滤
+            let filtered = allEntities.filter(entity => 
+                entity.name.toLowerCase().includes(searchTerm)
+            );
+            
+            // 排序
+            filtered.sort((a, b) => {
+                switch(sortBy) {
+                    case 'name':
+                        return a.name.localeCompare(b.name);
+                    case 'total':
+                        return b.total_count - a.total_count;
+                    case 'head':
+                        return b.head_count - a.head_count;
+                    case 'tail':
+                        return b.tail_count - a.tail_count;
+                    default:
+                        return 0;
+                }
+            });
+            
+            // 分页
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = startIndex + itemsPerPage;
+            const pageEntities = filtered.slice(startIndex, endIndex);
+            
+            // 渲染
+            const entityListHTML = pageEntities.map(entity => {
+                const imageSrc = entity.image_url || 'https://www.scholat.com/images/scholat_logo.png';
+                const typeLabel = entity.category || entity.entity_type || 'unknown';
+                return `<div class="entity-item fade-in" onclick="showEntityDetails('${entity.name}')">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <img src="${imageSrc}" alt="${entity.name}" class="entity-image" onerror="this.src='https://www.scholat.com/images/scholat_logo.png'">
+                            <div class="entity-info">
+                                <h6 class="mb-1">${entity.name}<span class="entity-type-badge">${typeLabel}</span></h6>
+                                <small class="text-muted">作为头实体: ${entity.head_count} | 作为尾实体: ${entity.tail_count} | 总计: ${entity.total_count}</small>
+                            </div>
+                        </div>
+                        <div><span class="badge-count">${entity.total_count}</span></div>
+                    </div>
+                </div>`;
+            }).join('');
+            
+            document.getElementById('entityList').innerHTML = entityListHTML || 
+                '<p class="text-center text-muted">没有找到匹配的实体</p>';
+            
+            // 更新分页
+            updatePagination(filtered.length);
+        }
+
+        // 更新分页
+        function updatePagination(totalItems) {
+            const totalPages = Math.ceil(totalItems / itemsPerPage);
+            const pagination = document.querySelector('.pagination');
+            
+            if (totalPages <= 1) {
+                pagination.innerHTML = '';
+                return;
+            }
+            
+            let paginationHTML = '';
+            
+            // 上一页
+            paginationHTML += `
+                <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+                    <a class="page-link" href="#" onclick="changePage(${currentPage - 1})">上一页</a>
+                </li>
+            `;
+            
+            // 页码
+            const startPage = Math.max(1, currentPage - 2);
+            const endPage = Math.min(totalPages, currentPage + 2);
+            
+            for (let i = startPage; i <= endPage; i++) {
+                paginationHTML += `
+                    <li class="page-item ${i === currentPage ? 'active' : ''}">
+                        <a class="page-link" href="#" onclick="changePage(${i})">${i}</a>
+                    </li>
+                `;
+            }
+            
+            // 下一页
+            paginationHTML += `
+                <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+                    <a class="page-link" href="#" onclick="changePage(${currentPage + 1})">下一页</a>
+                </li>
+            `;
+            
+            pagination.innerHTML = paginationHTML;
+        }
+
+        // 切换页面
+        function changePage(page) {
+            currentPage = page;
+            displayEntities();
+        }
+
+        // 显示实体详情
+        async function showEntityDetails(entityName) {
+            try {
+                // 获取包含该实体的所有三元组
+                const response = await fetch('/api/kg/info');
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    const entity = allEntities.find(e => e.name === entityName);
+                    
+                    // 找出相关三元组
+                    const headTriples = data.triples.filter(t => t[0] === entityName);
+                    const tailTriples = data.triples.filter(t => t[2] === entityName);
+                    
+                    // 获取实体的详细信息（包括图片）
+                    const entityDetail = allEntities.find(e => e.name === entityName);
+                    
+                    const detailsHTML = `
+                        <div class="row">
+                            <div class="col-md-4 text-center">
+                                <img src="${entityDetail?.image_url || 'https://www.scholat.com/images/scholat_logo.png'}" 
+                                     alt="${entityName}" 
+                                     class="img-fluid rounded mb-3"
+                                     style="max-width: 150px; height: auto; border: 3px solid #e0e0e0; box-shadow: 0 4px 12px rgba(0,0,0,0.15);"
+                                     onerror="this.src='https://www.scholat.com/images/scholat_logo.png'">
+                                <h6>${entityName}</h6>
+                                <span class="badge bg-secondary">${entityDetail?.category || entityDetail?.entity_type || 'unknown'}</span>
+                            </div>
+                            <div class="col-md-8">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6>基本信息</h6>
+                                        <p><strong>实体名称:</strong> ${entityName}</p>
+                                        <p><strong>实体类型:</strong> ${entityDetail?.entity_type || 'unknown'}</p>
+                                        <p><strong>分类:</strong> ${entityDetail?.category || '未分类'}</p>
+                                        <p><strong>作为头实体:</strong> ${entity.head_count} 次</p>
+                                        <p><strong>作为尾实体:</strong> ${entity.tail_count} 次</p>
+                                        <p><strong>总计出现:</strong> ${entity.total_count} 次</p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6>相关统计</h6>
+                                        <p><strong>涉及关系数:</strong> ${new Set([...headTriples.map(t => t[1]), ...tailTriples.map(t => t[1])].size}</p>
+                                        <p><strong>相关实体数:</strong> ${new Set([...headTriples.map(t => t[2]), ...tailTriples.map(t => t[0])].size)}</p>
+                                        ${entityDetail?.image_url ? `<p><strong>图片URL:</strong><br><small class="text-muted">${entityDetail.image_url}</small></p>` : ''}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        ${headTriples.length > 0 ? `
+                            <h6 class="mt-3">作为头实体的关系 (${headTriples.length})</h6>
+                            <div class="list-group">
+                                ${headTriples.map(triple => `
+                                    <div class="list-group-item">
+                                        <strong>${entityName}</strong> → <strong>${triple[1]}</strong> → <strong>${triple[2]}</strong>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : ''}
+                        
+                        ${tailTriples.length > 0 ? `
+                            <h6 class="mt-3">作为尾实体的关系 (${tailTriples.length})</h6>
+                            <div class="list-group">
+                                ${tailTriples.map(triple => `
+                                    <div class="list-group-item">
+                                        <strong>${triple[0]}</strong> → <strong>${triple[1]}</strong> → <strong>${entityName}</strong>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : ''}
+                    `;
+                    
+                    document.getElementById('entityDetails').innerHTML = detailsHTML;
+                    const modal = new bootstrap.Modal(document.getElementById('entityModal'));
+                    modal.show();
+                }
+            } catch (error) {
+                console.error('获取实体详情失败:', error);
+            }
+        }
+
+        // 事件监听器
+        document.getElementById('searchInput').addEventListener('input', () => {
+            currentPage = 1;
+            displayEntities();
+        });
+
+        document.getElementById('sortSelect').addEventListener('change', () => {
+            currentPage = 1;
+            displayEntities();
+        });
+
+        // 页面加载时初始化
+        window.addEventListener('load', () => {
+            checkKGStatus();
+        });
+    </script>
+</body>
+</html>

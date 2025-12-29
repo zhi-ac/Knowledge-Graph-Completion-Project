@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>实体管理 - 知识图谱补全系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+        }
+        .main-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            margin: 20px auto;
+            max-width: 1200px;
+            padding: 30px;
+        }
+        .header {
+            text-align: center;
+            background: linear-gradient(45deg, #4e54c8, #8f94fb);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+        }
+        .nav-link {
+            color: white;
+            text-decoration: none;
+            margin: 0 10px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+        .nav-link:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-1px);
+        }
+        .nav-link.active {
+            background: rgba(255, 255, 255, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="main-container">
+            <!-- 导航栏 -->
+            <div class="header">
+                <h1>[ENTITY] 实体管理</h1>
+                <p class="lead mb-0">管理和查看知识图谱中的所有实体</p>
+                <nav class="mt-3">
+                    <a href="/" class="nav-link">[HOME] 主页</a>
+                    <a href="/entity-management" class="nav-link active">[ENTITY] 实体管理</a>
+                    <a href="/relation-management" class="nav-link">[RELATION] 关系管理</a>
+                    <a href="/triple-management" class="nav-link">[TRIPLE] 三元组管理</a>
+                    <a href="/model-management" class="nav-link">[MODEL] 模型训练</a>
+                    <a href="/data-management" class="nav-link">[DATA] 数据管理</a>
+                    <a href="/analysis" class="nav-link">[ANALYSIS] 补全分析</a>
+                </nav>
+            </div>
+
+            <!-- 主要内容 -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>知识图谱状态</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="statusDiv">
+                                <p>正在检查状态...</p>
+                            </div>
+                            <div class="mt-3">
+                                <button class="btn btn-primary" onclick="initKG()">初始化知识图谱</button>
+                                <button class="btn btn-success ms-2" onclick="loadEntities()">加载实体列表</button>
+                                <button class="btn btn-warning ms-2" onclick="showAddEntityModal()">添加实体</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>实体列表</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="entityList">
+                                <p>请先初始化知识图谱</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 实体编辑模态框 -->
+    <div class="modal fade" id="entityModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="entityModalTitle">实体管理</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="entityForm">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">实体名称</label>
+                                    <input type="text" class="form-control" id="entityName" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">实体类型</label>
+                                    <select class="form-select" id="entityType" required>
+                                        <option value="">请选择...</option>
+                                        <option value="person">人物</option>
+                                        <option value="organization">机构</option>
+                                        <option value="event">事件</option>
+                                        <option value="document">文档</option>
+                                        <option value="platform">平台</option>
+                                        <option value="course">课程</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">分类</label>
+                                    <input type="text" class="form-control" id="entityCategory" placeholder="如：教授、大学、学术会议">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">其他属性 (JSON格式)</label>
+                                    <textarea class="form-control" id="entityAttributes" rows="6" placeholder='{"职称": "教授", "邮箱": "example@email.com"}'></textarea>
+                                    <div class="form-text">输入JSON格式的属性，例如：{"职称": "教授", "邮箱": "example@email.com"}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="saveEntity()">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 简化的初始化函数
+        async function initKG() {
+            console.log('开始初始化知识图谱...');
+            document.getElementById('statusDiv').innerHTML = '<p class="text-info">正在初始化...</p>';
+            
+            try {
+                const response = await fetch('/api/kg/init', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({use_sample: true})
+                });
+                
+                console.log('收到响应:', response.status);
+                const data = await response.json();
+                console.log('响应数据:', data);
+                
+                if (data.status === 'success') {
+                    document.getElementById('statusDiv').innerHTML = `
+                        <div class="alert alert-success">
+                            <strong>初始化成功!</strong><br>
+                            实体: ${data.entity_count} | 关系: ${data.relation_count} | 三元组: ${data.triple_count}
+                        </div>
+                    `;
+                } else {
+                    document.getElementById('statusDiv').innerHTML = `
+                        <div class="alert alert-danger">
+                            <strong>初始化失败:</strong> ${data.message}
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('初始化错误:', error);
+                document.getElementById('statusDiv').innerHTML = `
+                    <div class="alert alert-danger">
+                        <strong>初始化错误:</strong> ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        // 简化的加载实体函数
+        async function loadEntities() {
+            console.log('开始加载实体...');
+            document.getElementById('entityList').innerHTML = '<p class="text-info">正在加载实体...</p>';
+            
+            try {
+                const response = await fetch('/api/kg/entities');
+                console.log('实体响应:', response.status);
+                const data = await response.json();
+                console.log('实体数据:', data);
+                
+                if (data.status === 'success') {
+                    const entitiesHTML = data.entities.map(entity => {
+                        // 根据实体类型显示不同的信息
+                        let detailInfo = '';
+                        
+                        if (entity.entity_type === 'person') {
+                            detailInfo = `
+                                <div class="mt-2">
+                                    <span class="badge bg-info">${entity.category || '未知'}</span>
+                                    ${entity['职称'] ? `<span class="badge bg-secondary ms-1">${entity['职称']}</span>` : ''}
+                                    ${entity['荣誉'] ? `<div class="small text-muted mt-1">${entity['荣誉']}</div>` : ''}
+                                    ${entity['邮箱'] ? `<div class="small text-muted">📧 ${entity['邮箱']}</div>` : ''}
+                                </div>
+                            `;
+                        } else if (entity.entity_type === 'organization') {
+                            detailInfo = `
+                                <div class="mt-2">
+                                    <span class="badge bg-success">${entity.category || '未知'}</span>
+                                    ${entity['类型'] ? `<div class="small text-muted mt-1">类型: ${entity['类型']}</div>` : ''}
+                                    ${entity['所在地'] ? `<div class="small text-muted">📍 ${entity['所在地']}</div>` : ''}
+                                    ${entity['建校时间'] ? `<div class="small text-muted">📅 建于 ${entity['建校时间']}</div>` : ''}
+                                    ${entity['别名'] ? `<div class="small text-muted">🏷️ ${entity['别名']}</div>` : ''}
+                                    ${entity['负责人'] ? `<div class="small text-muted">👤 负责人: ${entity['负责人']}</div>` : ''}
+                                </div>
+                            `;
+                        } else if (entity.entity_type === 'event') {
+                            detailInfo = `
+                                <div class="mt-2">
+                                    <span class="badge bg-warning">${entity.category || '未知'}</span>
+                                    ${entity['领域'] ? `<div class="small text-muted mt-1">领域: ${entity['领域']}</div>` : ''}
+                                    ${entity['举办时间'] ? `<div class="small text-muted">📅 ${entity['举办时间']}</div>` : ''}
+                                    ${entity['举办地点'] ? `<div class="small text-muted">📍 ${entity['举办地点']}</div>` : ''}
+                                    ${entity['别名'] ? `<div class="small text-muted">🏷️ ${entity['别名']}</div>` : ''}
+                                </div>
+                            `;
+                        } else if (entity.entity_type === 'document') {
+                            detailInfo = `
+                                <div class="mt-2">
+                                    <span class="badge bg-primary">${entity.category || '未知'}</span>
+                                    ${entity['作者'] ? `<div class="small text-muted mt-1">作者: ${entity['作者']}</div>` : ''}
+                                    ${entity['发表状态'] ? `<div class="small text-muted">📄 ${entity['发表状态']}</div>` : ''}
+                                    ${entity['会议'] ? `<div class="small text-muted">🎯 ${entity['会议']}</div>` : ''}
+                                    ${entity['级别'] ? `<div class="small text-muted">⭐ ${entity['级别']}</div>` : ''}
+                                    ${entity['影响因子'] ? `<div class="small text-muted">📊 影响因子: ${entity['影响因子']}</div>` : ''}
+                                    ${entity['别名'] ? `<div class="small text-muted">🏷️ ${entity['别名']}</div>` : ''}
+                                </div>
+                            `;
+                        } else if (entity.entity_type === 'platform') {
+                            detailInfo = `
+                                <div class="mt-2">
+                                    <span class="badge bg-success">${entity.category || '未知'}</span>
+                                    ${entity['网址'] ? `<div class="small text-muted mt-1">🌐 <a href="${entity['网址']}" target="_blank">${entity['网址']}</a></div>` : ''}
+                                    ${entity['创始人'] ? `<div class="small text-muted">👤 创始人: ${entity['创始人']}</div>` : ''}
+                                    ${entity['注册用户'] ? `<div class="small text-muted">👥 ${entity['注册用户']}</div>` : ''}
+                                    ${entity['创建时间'] ? `<div class="small text-muted">📅 建于 ${entity['创建时间']}</div>` : ''}
+                                </div>
+                            `;
+                        } else if (entity.entity_type === 'course') {
+                            detailInfo = `
+                                <div class="mt-2">
+                                    <span class="badge bg-info">${entity.category || '未知'}</span>
+                                    ${entity['创建人'] ? `<div class="small text-muted mt-1">👤 创建者: ${entity['创建人']}</div>` : ''}
+                                    ${entity['平台'] ? `<div class="small text-muted">🌐 平台: ${entity['平台']}</div>` : ''}
+                                    ${entity['状态'] ? `<div class="small text-muted">📚 状态: ${entity['状态']}</div>` : ''}
+                                </div>
+                            `;
+                        }
+                        
+                        const imageSrc = entity.image_url || 'https://www.scholat.com/images/scholat_logo.png';
+                        const entityName = entity.name.replace(/'/g, "\\'");
+                        const entityType = entity.entity_type || 'unknown';
+                        const category = entity.category || '';
+                        return `<div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="d-flex align-items-start">
+                                    <img src="${imageSrc}" alt="${entityName}" class="rounded me-3" style="width: 60px; height: 60px; object-fit: cover; border: 2px solid #e0e0e0;" onerror="this.src='https://www.scholat.com/images/scholat_logo.png'">
+                                    <div class="flex-grow-1">
+                                        <h6 class="mb-1"><strong>${entityName}</strong><span class="badge bg-light text-dark ms-2">${entityType}</span></h6>
+                                        <div class="small text-muted">头实体: ${entity.head_count} | 尾实体: ${entity.tail_count} | 总关系: ${entity.total_count}</div>
+                                        ${detailInfo}
+                                    </div>
+                                </div>
+                                <div class="btn-group-vertical ms-2">
+                                    <button class="btn btn-sm btn-outline-primary" onclick="editEntity('${entityName}', '${entityType}', '${category}')">
+                                        <i class="bi bi-pencil"></i> 编辑
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger mt-1" onclick="deleteEntity('${entityName}')">
+                                        <i class="bi bi-trash"></i> 删除
+                                    </button>
+                                </div>
+                            </div>
+                        </div>`;
+                    }).join('');
+                    
+                    document.getElementById('entityList').innerHTML = `
+                        <div class="list-group">
+                            ${entitiesHTML}
+                        </div>
+                    `;
+                } else {
+                    document.getElementById('entityList').innerHTML = `
+                        <div class="alert alert-danger">加载失败: ${data.message}</div>
+                    `;
+                }
+            } catch (error) {
+                console.error('加载实体错误:', error);
+                document.getElementById('entityList').innerHTML = `
+                    <div class="alert alert-danger">加载错误: ${error.message}</div>
+                `;
+            }
+        }
+
+        let currentEditingEntity = null;
+        let entityModal = null;
+
+        // 页面加载时初始化模态框
+        window.addEventListener('load', () => {
+            console.log('页面加载完成');
+            checkStatus();
+            entityModal = new bootstrap.Modal(document.getElementById('entityModal'));
+        });
+
+        // 显示添加实体模态框
+        function showAddEntityModal() {
+            currentEditingEntity = null;
+            document.getElementById('entityModalTitle').textContent = '添加新实体';
+            document.getElementById('entityForm').reset();
+            entityModal.show();
+        }
+
+        // 编辑实体
+        function editEntity(name, type, category) {
+            currentEditingEntity = name;
+            document.getElementById('entityModalTitle').textContent = '编辑实体';
+            document.getElementById('entityName').value = name;
+            document.getElementById('entityType').value = type;
+            document.getElementById('entityCategory').value = category;
+            
+            // 获取实体的详细属性
+            fetch(`/api/kg/entity/${encodeURIComponent(name)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        const entity = data.entity;
+                        const attributes = {};
+                        
+                        // 提取所有非基本属性
+                        Object.keys(entity).forEach(key => {
+                            if (!['id', 'name', 'entity_type', 'category', 'head_count', 'tail_count', 'total_count', 'created_at'].includes(key)) {
+                                if (entity[key] && entity[key] !== '') {
+                                    attributes[key] = entity[key];
+                                }
+                            }
+                        });
+                        
+                        document.getElementById('entityAttributes').value = JSON.stringify(attributes, null, 2);
+                    }
+                })
+                .catch(error => {
+                    console.error('获取实体详情失败:', error);
+                    document.getElementById('entityAttributes').value = '{}';
+                });
+            
+            entityModal.show();
+        }
+
+        // 保存实体
+        function saveEntity() {
+            const name = document.getElementById('entityName').value.trim();
+            const type = document.getElementById('entityType').value;
+            const category = document.getElementById('entityCategory').value.trim();
+            const attributesText = document.getElementById('entityAttributes').value.trim();
+            
+            if (!name || !type) {
+                alert('请填写实体名称和类型');
+                return;
+            }
+            
+            let attributes = {};
+            if (attributesText) {
+                try {
+                    attributes = JSON.parse(attributesText);
+                } catch (e) {
+                    alert('属性格式错误，请输入有效的JSON格式');
+                    return;
+                }
+            }
+            
+            const url = currentEditingEntity ? `/api/kg/entity/${encodeURIComponent(currentEditingEntity)}` : '/api/kg/entity';
+            const method = currentEditingEntity ? 'PUT' : 'POST';
+            
+            fetch(url, {
+                method: method,
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    name: name,
+                    entity_type: type,
+                    category: category,
+                    attributes: attributes
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showAlert(currentEditingEntity ? '实体更新成功' : '实体添加成功', 'success');
+                    entityModal.hide();
+                    loadEntities();
+                } else {
+                    showAlert('操作失败: ' + (data.message || '未知错误'), 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('保存实体失败:', error);
+                showAlert('操作失败', 'danger');
+            });
+        }
+
+        // 删除实体
+        function deleteEntity(name) {
+            if (!confirm(`确定要删除实体 "${name}" 吗？这将同时删除相关的所有三元组。`)) {
+                return;
+            }
+            
+            fetch(`/api/kg/entity/${encodeURIComponent(name)}`, {
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showAlert('实体删除成功', 'success');
+                    loadEntities();
+                } else {
+                    showAlert('删除失败: ' + (data.message || '未知错误'), 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('删除实体失败:', error);
+                showAlert('删除失败', 'danger');
+            });
+        }
+
+        // 检查状态函数
+        async function checkStatus() {
+            try {
+                const response = await fetch('/api/kg/info');
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    document.getElementById('statusDiv').innerHTML = `
+                        <div class="alert alert-success">
+                            <strong>知识图谱已初始化</strong><br>
+                            实体: ${data.entity_count} | 关系: ${data.relation_count} | 三元组: ${data.triple_count}
+                        </div>
+                    `;
+                    // 自动加载实体
+                    loadEntities();
+                } else {
+                    document.getElementById('statusDiv').innerHTML = `
+                        <div class="alert alert-warning">
+                            <strong>知识图谱未初始化:</strong> ${data.message}
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('statusDiv').innerHTML = `
+                    <div class="alert alert-danger">
+                        <strong>状态检查失败:</strong> ${error.message}
+                    </div>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

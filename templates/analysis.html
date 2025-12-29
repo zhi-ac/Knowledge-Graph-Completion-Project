@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>补全分析 - 知识图谱补全系统</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+        }
+        .main-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            margin: 20px auto;
+            max-width: 1400px;
+            padding: 30px;
+        }
+        .header {
+            text-align: center;
+            background: linear-gradient(45deg, #4e54c8, #8f94fb);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(78, 84, 200, 0.3);
+        }
+        .section-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            border: 1px solid #e0e0e0;
+        }
+        .section-title {
+            color: #4e54c8;
+            font-weight: bold;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e8e8e8;
+        }
+        .btn-primary {
+            background: linear-gradient(45deg, #4e54c8, #8f94fb);
+            border: none;
+            border-radius: 8px;
+            padding: 10px 25px;
+            transition: all 0.3s ease;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(78, 84, 200, 0.4);
+            background: linear-gradient(45deg, #3f46b8, #7f85f0);
+        }
+        .result-item {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 10px 0;
+            border-left: 4px solid #4e54c8;
+        }
+        .completion-form {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .nav-link {
+            color: white;
+            text-decoration: none;
+            margin: 0 10px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+        .nav-link:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-1px);
+        }
+        .nav-link.active {
+            background: rgba(255, 255, 255, 0.4);
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .chart-container {
+            position: relative;
+            height: 400px;
+            margin: 20px 0;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+        }
+        .stat-label {
+            opacity: 0.8;
+            font-size: 0.9rem;
+        }
+        .analysis-tabs {
+            border-bottom: 2px solid #e0e0e0;
+            margin-bottom: 20px;
+        }
+        .tab-button {
+            background: none;
+            border: none;
+            padding: 10px 20px;
+            margin-right: 10px;
+            color: #666;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s ease;
+        }
+        .tab-button.active {
+            color: #4e54c8;
+            border-bottom-color: #4e54c8;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="main-container">
+            <!-- 导航栏 -->
+            <div class="header">
+                <h1>[ANALYSIS] 知识图谱补全分析</h1>
+                <p class="lead mb-0">深度分析和优化知识图谱补全效果</p>
+                <nav class="mt-3">
+                    <a href="/" class="nav-link">[HOME] 主页</a>
+                    <a href="/entity-management" class="nav-link">[ENTITY] 实体管理</a>
+                    <a href="/relation-management" class="nav-link">[RELATION] 关系管理</a>
+                    <a href="/triple-management" class="nav-link">[TRIPLE] 三元组管理</a>
+                    <a href="/model-management" class="nav-link">[MODEL] 模型训练</a>
+                    <a href="/data-management" class="nav-link">[DATA] 数据管理</a>
+                    <a href="/analysis" class="nav-link active">[ANALYSIS] 补全分析</a>
+                </nav>
+            </div>
+
+            <!-- 分析选项卡 -->
+            <div class="analysis-tabs">
+                <button class="tab-button active" onclick="switchTab('completion')">补全分析</button>
+                <button class="tab-button" onclick="switchTab('statistics')">统计分析</button>
+                <button class="tab-button" onclick="switchTab('quality')">质量评估</button>
+                <button class="tab-button" onclick="switchTab('visualization')">可视化分析</button>
+            </div>
+
+            <!-- 补全分析选项卡 -->
+            <div id="completion-tab" class="tab-content active">
+                <div class="row">
+                    <div class="col-lg-6">
+                        <div class="section-card">
+                            <h5 class="section-title">知识图谱补全</h5>
+                            
+                            <!-- 补全表单 -->
+                            <div class="completion-form">
+                                <h6>三元组补全</h6>
+                                <form id="completionForm">
+                                    <div class="mb-3">
+                                        <label class="form-label">头实体（可选）</label>
+                                        <input type="text" class="form-control" id="headEntity" placeholder="输入头实体名称">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">关系</label>
+                                        <select class="form-select" id="relationSelect">
+                                            <option value="">选择关系...</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">尾实体（可选）</label>
+                                        <input type="text" class="form-control" id="tailEntity" placeholder="输入尾实体名称">
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <label class="form-label">返回结果数</label>
+                                            <input type="number" class="form-control" id="topK" value="10" min="1" max="50">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">置信度阈值</label>
+                                            <input type="range" class="form-range" id="confidenceThreshold" min="0" max="100" value="50">
+                                            <small>阈值: <span id="thresholdValue">50</span>%</small>
+                                        </div>
+                                    </div>
+                                    <div class="mt-3">
+                                        <button type="submit" class="btn btn-primary w-100">[COMPLETE] 执行补全</button>
+                                    </div>
+                                </form>
+                            </div>
+
+                            <!-- 批量补全 -->
+                            <div class="completion-form">
+                                <h6>批量链接预测</h6>
+                                <form id="batchPredictionForm">
+                                    <div class="mb-3">
+                                        <label class="form-label">选择实体</label>
+                                        <select class="form-select" id="batchEntitySelect" multiple size="4">
+                                            <!-- 将通过 JavaScript 动态填充 -->
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">预测深度</label>
+                                        <input type="number" class="form-control" id="predictionDepth" value="2" min="1" max="5">
+                                    </div>
+                                    <button type="submit" class="btn btn-primary w-100">[PREDICT] 批量预测</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-6">
+                        <div class="section-card">
+                            <h5 class="section-title">补全结果</h5>
+                            <div id="completionResults">
+                                <p class="text-center text-muted">请输入补全条件开始分析</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 统计分析选项卡 -->
+            <div id="statistics-tab" class="tab-content">
+                <div class="section-card">
+                    <h5 class="section-title">统计分析</h5>
+                    <div class="stats-grid" id="statsGrid">
+                        <!-- 统计卡片将通过 JavaScript 动态生成 -->
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="chart-container">
+                                <canvas id="entityChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="chart-container">
+                                <canvas id="relationChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <div class="chart-container">
+                                <canvas id="networkChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 质量评估选项卡 -->
+            <div id="quality-tab" class="tab-content">
+                <div class="section-card">
+                    <h5 class="section-title">知识图谱质量评估</h5>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>连接性分析</h6>
+                            <div id="connectivityAnalysis">
+                                <!-- 连接性分析结果 -->
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>完整性检查</h6>
+                            <div id="completenessCheck">
+                                <!-- 完整性检查结果 -->
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <h6>质量建议</h6>
+                            <div id="qualitySuggestions">
+                                <!-- 质量改进建议 -->
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-3">
+                        <button class="btn btn-primary" onclick="runQualityAnalysis()">[ANALYZE] 运行质量分析</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 可视化分析选项卡 -->
+            <div id="visualization-tab" class="tab-content">
+                <div class="section-card">
+                    <h5 class="section-title">可视化分析</h5>
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            <h6>分析选项</h6>
+                            <div class="mb-3">
+                                <label class="form-label">分析类型</label>
+                                <select class="form-select" id="analysisType">
+                                    <option value="entity_degree">实体度分布</option>
+                                    <option value="relation_strength">关系强度</option>
+                                    <option value="path_analysis">路径分析</option>
+                                    <option value="cluster_analysis">聚类分析</option>
+                                </select>
+                            </div>
+                            <button class="btn btn-primary w-100" onclick="runVisualizationAnalysis()">[ANALYZE] 开始分析</button>
+                        </div>
+                        <div class="col-md-8">
+                            <div class="chart-container">
+                                <canvas id="visualizationChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let currentChart = null;
+
+        // 切换选项卡
+        function switchTab(tabName) {
+            // 隐藏所有选项卡内容
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // 移除所有按钮的 active 类
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.classList.remove('active');
+            });
+            
+            // 显示选中的选项卡
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+            event.target.classList.add('active');
+            
+            // 根据选项卡加载相应数据
+            if (tabName === 'statistics') {
+                loadStatistics();
+            }
+        }
+
+        // 加载统计数据
+        async function loadStatistics() {
+            try {
+                const response = await fetch('/api/kg/statistics');
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    displayStatistics(data);
+                    createCharts(data);
+                }
+            } catch (error) {
+                console.error('加载统计数据失败:', error);
+            }
+        }
+
+        // 显示统计卡片
+        function displayStatistics(data) {
+            const stats = data.basic_stats;
+            const statsGrid = document.getElementById('statsGrid');
+            
+            statsGrid.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-number">${stats.entity_count}</div>
+                    <div class="stat-label">实体数量</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${stats.relation_count}</div>
+                    <div class="stat-label">关系数量</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${stats.triple_count}</div>
+                    <div class="stat-label">三元组数量</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${(stats.triple_count / stats.entity_count).toFixed(2)}</div>
+                    <div class="stat-label">平均实体度</div>
+                </div>
+            `;
+        }
+
+        // 创建图表
+        function createCharts(data) {
+            // 销毁现有图表
+            if (currentChart) {
+                currentChart.destroy();
+            }
+
+            // 实体度分布图
+            const entityCtx = document.getElementById('entityChart').getContext('2d');
+            new Chart(entityCtx, {
+                type: 'bar',
+                data: {
+                    labels: data.top_entities.map(e => e[0]).slice(0, 10),
+                    datasets: [{
+                        label: '实体出现次数',
+                        data: data.top_entities.map(e => e[1]).slice(0, 10),
+                        backgroundColor: 'rgba(78, 84, 200, 0.6)',
+                        borderColor: 'rgba(78, 84, 200, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: '前10个最活跃实体'
+                        }
+                    }
+                }
+            });
+
+            // 关系分布图
+            const relationCtx = document.getElementById('relationChart').getContext('2d');
+            new Chart(relationCtx, {
+                type: 'pie',
+                data: {
+                    labels: data.top_relations.map(r => r[0]).slice(0, 8),
+                    datasets: [{
+                        data: data.top_relations.map(r => r[1]).slice(0, 8),
+                        backgroundColor: [
+                            'rgba(255, 99, 132, 0.6)',
+                            'rgba(54, 162, 235, 0.6)',
+                            'rgba(255, 206, 86, 0.6)',
+                            'rgba(75, 192, 192, 0.6)',
+                            'rgba(153, 102, 255, 0.6)',
+                            'rgba(255, 159, 64, 0.6)',
+                            'rgba(199, 199, 199, 0.6)',
+                            'rgba(83, 102, 255, 0.6)'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: '关系类型分布（前8个）'
+                        }
+                    }
+                }
+            });
+        }
+
+        // 补全表单提交
+        document.getElementById('completionForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const head = document.getElementById('headEntity').value;
+            const relation = document.getElementById('relationSelect').value;
+            const tail = document.getElementById('tailEntity').value;
+            const topK = parseInt(document.getElementById('topK').value);
+            
+            try {
+                const response = await fetch('/api/kg/complete', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({head, relation, tail, top_k: topK})
+                });
+                
+                const data = await response.json();
+                const resultsDiv = document.getElementById('completionResults');
+                
+                if (data.status === 'success') {
+                    resultsDiv.innerHTML = `
+                        <h6>[RESULT] 补全结果 (${data.results.length})</h6>
+                        ${data.results.map((r, index) => `
+                            <div class="result-item fade-in">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong>${r.entity}</strong>
+                                        <div class="small text-muted">相似度: ${r.score.toFixed(4)}</div>
+                                    </div>
+                                    <div>
+                                        <button class="btn btn-sm btn-primary" onclick="acceptResult('${r.entity}', ${index})">采纳</button>
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    `;
+                } else {
+                    resultsDiv.innerHTML = `<div class="alert alert-danger">${data.message}</div>`;
+                }
+            } catch (error) {
+                document.getElementById('completionResults').innerHTML = 
+                    `<div class="alert alert-danger">补全失败: ${error.message}</div>`;
+            }
+        });
+
+        // 置信度阈值更新
+        document.getElementById('confidenceThreshold').addEventListener('input', (e) => {
+            document.getElementById('thresholdValue').textContent = e.target.value;
+        });
+
+        // 采纳补全结果
+        async function acceptResult(entity, index) {
+            // 这里可以添加采纳结果的逻辑
+            alert(`已采纳结果: ${entity}`);
+        }
+
+        // 运行质量分析
+        async function runQualityAnalysis() {
+            try {
+                const response = await fetch('/api/kg/statistics');
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    const stats = data.basic_stats;
+                    
+                    // 连接性分析
+                    const connectivity = `
+                        <div class="result-item">
+                            <strong>实体连接率:</strong> ${stats.entity_count > 0 ? (stats.triple_count / stats.entity_count).toFixed(2) : 0}
+                        </div>
+                        <div class="result-item">
+                            <strong>关系密度:</strong> ${stats.relation_count > 0 ? (stats.triple_count / stats.relation_count).toFixed(2) : 0}
+                        </div>
+                    `;
+                    document.getElementById('connectivityAnalysis').innerHTML = connectivity;
+                    
+                    // 完整性检查
+                    const completeness = `
+                        <div class="result-item">
+                            <strong>数据完整性:</strong> ${stats.triple_count > 0 ? '良好' : '需要补充数据'}
+                        </div>
+                        <div class="result-item">
+                            <strong>实体覆盖率:</strong> ${stats.entity_count > 0 ? ((stats.entity_count / Math.max(stats.entity_count, 100)) * 100).toFixed(1) + '%' : '0%'}
+                        </div>
+                    `;
+                    document.getElementById('completenessCheck').innerHTML = completeness;
+                    
+                    // 质量建议
+                    const suggestions = [];
+                    if (stats.triple_count / stats.entity_count < 2) {
+                        suggestions.push('建议增加更多三元组以提高连接密度');
+                    }
+                    if (stats.relation_count > stats.triple_count / 2) {
+                        suggestions.push('部分关系可能使用频率较低，考虑合并或优化');
+                    }
+                    
+                    const suggestionsHTML = suggestions.map(s => 
+                        `<div class="result-item">${s}</div>`
+                    ).join('');
+                    
+                    document.getElementById('qualitySuggestions').innerHTML = suggestionsHTML || 
+                        '<div class="result-item">知识图谱质量良好，无需特别改进</div>';
+                }
+            } catch (error) {
+                console.error('质量分析失败:', error);
+            }
+        }
+
+        // 运行可视化分析
+        async function runVisualizationAnalysis() {
+            const analysisType = document.getElementById('analysisType').value;
+            
+            try {
+                const response = await fetch('/api/kg/statistics');
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    createVisualizationChart(analysisType, data);
+                }
+            } catch (error) {
+                console.error('可视化分析失败:', error);
+            }
+        }
+
+        // 创建可视化图表
+        function createVisualizationChart(type, data) {
+            const ctx = document.getElementById('visualizationChart').getContext('2d');
+            
+            if (currentChart) {
+                currentChart.destroy();
+            }
+            
+            let chartConfig = {};
+            
+            switch(type) {
+                case 'entity_degree':
+                    chartConfig = {
+                        type: 'scatter',
+                        data: {
+                            datasets: [{
+                                label: '实体度分布',
+                                data: Object.entries(data.entity_stats).map(([entity, stats]) => ({
+                                    x: stats.as_head,
+                                    y: stats.as_tail,
+                                    label: entity
+                                })),
+                                backgroundColor: 'rgba(78, 84, 200, 0.6)'
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                title: {
+                                    display: true,
+                                    text: '实体度分布分析'
+                                }
+                            },
+                            scales: {
+                                x: { title: { display: true, text: '作为头实体次数' } },
+                                y: { title: { display: true, text: '作为尾实体次数' } }
+                            }
+                        }
+                    };
+                    break;
+                    
+                default:
+                    return;
+            }
+            
+            currentChart = new Chart(ctx, chartConfig);
+        }
+
+        // 页面加载时初始化
+        window.addEventListener('load', async () => {
+            // 加载实体和关系选项
+            try {
+                const [entitiesResponse, relationsResponse] = await Promise.all([
+                    fetch('/api/kg/entities'),
+                    fetch('/api/kg/relations')
+                ]);
+                
+                const entitiesData = await entitiesResponse.json();
+                const relationsData = await relationsResponse.json();
+                
+                if (entitiesData.status === 'success') {
+                    const entitySelect = document.getElementById('batchEntitySelect');
+                    entitySelect.innerHTML = entitiesData.entities.map(e => 
+                        `<option value="${e.name}">${e.name}</option>`
+                    ).join('');
+                }
+                
+                if (relationsData.status === 'success') {
+                    const relationSelect = document.getElementById('relationSelect');
+                    relationSelect.innerHTML = '<option value="">选择关系...</option>' +
+                        relationsData.relations.map(r => 
+                            `<option value="${r.name}">${r.name}</option>`
+                        ).join('');
+                }
+            } catch (error) {
+                console.error('初始化失败:', error);
+            }
+        });
+    </script>
+</body>
+</html>
