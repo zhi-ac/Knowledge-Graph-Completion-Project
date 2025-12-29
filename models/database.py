@@ -52,11 +52,15 @@ class Entity(Base):
     
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(255), unique=True, nullable=False, index=True)
-    description = Column(Text)
+    entity_type = Column(String(50), nullable=False, index=True)  # person, organization, event, document, platform, course等
+    category = Column(String(100))  # 教授, 大学, 学术会议, 学术论文等
+    attributes = Column(Text)  # JSON格式存储所有其他属性
+    image_url = Column(String(500))  # 实体图片URL，默认使用学者网logo
     created_at = Column(DateTime, default=datetime.utcnow)
     
     __table_args__ = (
         Index('idx_entity_name', 'name'),
+        Index('idx_entity_type', 'entity_type'),
     )
 
 class Relation(Base):
@@ -110,16 +114,36 @@ class KGDatabase:
     """知识图谱数据库操作类"""
     
     @staticmethod
-    def add_entity(name: str, description: str = None) -> int:
+    def add_entity(name: str, entity_type: str = None, category: str = None, attributes: dict = None, image_url: str = None) -> int:
         """添加实体，返回实体ID"""
         if session is None:
             return None
         
         existing = session.query(Entity).filter_by(name=name).first()
         if existing:
+            # 更新现有实体的信息
+            if entity_type:
+                existing.entity_type = entity_type
+            if category:
+                existing.category = category
+            if attributes:
+                existing.attributes = json.dumps(attributes, ensure_ascii=False)
+            if image_url:
+                existing.image_url = image_url
+            session.commit()
             return existing.id
         
-        entity = Entity(name=name, description=description)
+        # 创建新实体，设置默认图片
+        if not image_url:
+            image_url = "https://www.scholat.com/images/scholat_logo.png"
+            
+        entity = Entity(
+            name=name,
+            entity_type=entity_type or 'unknown',
+            category=category,
+            attributes=json.dumps(attributes or {}, ensure_ascii=False),
+            image_url=image_url
+        )
         session.add(entity)
         session.commit()
         return entity.id
@@ -175,7 +199,7 @@ class KGDatabase:
             return False
     
     @staticmethod
-    def get_or_create_entity(name: str) -> int:
+    def get_or_create_entity(name: str, entity_type: str = None, category: str = None, attributes: dict = None, image_url: str = None) -> int:
         """获取或创建实体ID"""
         if session is None:
             return None
@@ -184,7 +208,17 @@ class KGDatabase:
         if entity:
             return entity.id
         
-        entity = Entity(name=name)
+        # 设置默认图片
+        if not image_url:
+            image_url = "https://www.scholat.com/images/scholat_logo.png"
+            
+        entity = Entity(
+            name=name,
+            entity_type=entity_type or 'unknown',
+            category=category,
+            attributes=json.dumps(attributes or {}, ensure_ascii=False),
+            image_url=image_url
+        )
         session.add(entity)
         session.flush()
         return entity.id
@@ -212,6 +246,67 @@ class KGDatabase:
         
         entities = session.query(Entity.name).all()
         return [entity[0] for entity in entities]
+    
+    @staticmethod
+    def get_entity_details(name: str) -> dict:
+        """获取实体详细信息"""
+        if session is None:
+            return {}
+        
+        entity = session.query(Entity).filter_by(name=name).first()
+        if not entity:
+            return {}
+        
+        # 将实体对象转换为字典
+        details = {
+            'id': entity.id,
+            'name': entity.name,
+            'entity_type': entity.entity_type,
+            'category': entity.category,
+            'image_url': entity.image_url or "https://www.scholat.com/images/scholat_logo.png",
+            'created_at': entity.created_at.isoformat() if entity.created_at else None
+        }
+        
+        # 解析JSON attributes
+        if entity.attributes:
+            try:
+                attributes = json.loads(entity.attributes)
+                details.update(attributes)
+            except json.JSONDecodeError:
+                pass
+        
+        return details
+    
+    @staticmethod
+    def get_all_entities_with_details() -> List[dict]:
+        """获取所有实体的详细信息"""
+        if session is None:
+            return []
+        
+        entities = session.query(Entity).all()
+        result = []
+        
+        for entity in entities:
+            details = {
+                'id': entity.id,
+                'name': entity.name,
+                'entity_type': entity.entity_type,
+                'category': entity.category,
+                'image_url': entity.image_url or "https://www.scholat.com/images/scholat_logo.png",
+                'created_at': entity.created_at.isoformat() if entity.created_at else None
+            }
+            
+            # 解析JSON attributes
+            if entity.attributes:
+                try:
+                    attributes = json.loads(entity.attributes)
+                    details.update(attributes)
+                except json.JSONDecodeError:
+                    pass
+            
+            result.append(details)
+        
+        return result
     
     @staticmethod
     def get_all_relations() -> List[str]:

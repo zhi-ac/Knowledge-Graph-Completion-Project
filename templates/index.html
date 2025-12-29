@@ -109,6 +109,22 @@
             padding: 15px;
             margin-top: 15px;
         }
+        .nav-link {
+            color: white;
+            text-decoration: none;
+            margin: 0 10px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+        .nav-link:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-1px);
+        }
+        .nav-link.active {
+            background: rgba(255, 255, 255, 0.4);
+        }
     </style>
 </head>
 <body>
@@ -117,7 +133,15 @@
             <div class="header">
                 <h1>[SYSTEM] 学者网知识图谱补全系统</h1>
                 <p class="lead mb-0">基于深度学习的智能知识图谱补全平台</p>
-                <!-- <p class="lead mb-0">基于TransE算法的智能知识图谱补全平台</p> -->
+                <nav class="mt-3">
+                    <a href="/" class="nav-link active">[HOME] 主页</a>
+                    <a href="/entity-management" class="nav-link">[ENTITY] 实体管理</a>
+                    <a href="/relation-management" class="nav-link">[RELATION] 关系管理</a>
+                    <a href="/triple-management" class="nav-link">[TRIPLE] 三元组管理</a>
+                    <a href="/model-management" class="nav-link">[MODEL] 模型训练</a>
+                    <a href="/data-management" class="nav-link">[DATA] 数据管理</a>
+                    <a href="/analysis" class="nav-link">[ANALYSIS] 补全分析</a>
+                </nav>
             </div>
 
             <!-- 系统状态 -->
@@ -211,6 +235,45 @@
                             <button type="submit" class="btn btn-info w-100">[PREDICT] 预测</button>
                         </form>
                         <div id="predictionResults"></div>
+                    </div>
+
+                    <!-- 数据管理 -->
+                    <div class="section-card">
+                        <h5 class="section-title">[DATA] 数据管理</h5>
+                        
+                        <!-- 导入/导出 -->
+                        <div class="mb-3">
+                            <button class="btn btn-info w-100 mb-2" onclick="exportKG()">
+                                [EXPORT] 导出知识图谱
+                            </button>
+                            <button class="btn btn-warning w-100 mb-2" onclick="showImportDialog()">
+                                [IMPORT] 导入知识图谱
+                            </button>
+                            <button class="btn btn-success w-100 mb-2" onclick="showStatistics()">
+                                [STATS] 统计报告
+                            </button>
+                            <button class="btn btn-secondary w-100" onclick="showEntitiesRelations()">
+                                [VIEW] 实体/关系列表
+                            </button>
+                        </div>
+
+                        <!-- 搜索三元组 -->
+                        <h6>搜索三元组</h6>
+                        <form id="searchForm">
+                            <div class="mb-2">
+                                <input type="text" class="form-control" id="searchQuery" placeholder="搜索关键词" required>
+                            </div>
+                            <div class="mb-2">
+                                <select class="form-select" id="searchType">
+                                    <option value="all">全部</option>
+                                    <option value="head">头实体</option>
+                                    <option value="relation">关系</option>
+                                    <option value="tail">尾实体</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100">[SEARCH] 搜索</button>
+                        </form>
+                        <div id="searchResults" class="mt-3"></div>
                     </div>
                 </div>
 
@@ -748,6 +811,324 @@
                 }
             } catch (error) {
                 updateStatus(`[ERROR] 加载失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 数据管理功能
+        
+        // 导出知识图谱
+        async function exportKG() {
+            try {
+                const response = await fetch('/api/kg/export');
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    // 创建下载链接
+                    const blob = new Blob([JSON.stringify(data.data, null, 2)], {type: 'application/json'});
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `knowledge_graph_${new Date().toISOString().slice(0,10)}.json`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    
+                    updateStatus('[SUCCESS] 知识图谱导出成功', 'success');
+                } else {
+                    updateStatus(`[ERROR] 导出失败: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                updateStatus(`[ERROR] 导出失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 显示导入对话框
+        function showImportDialog() {
+            const dialog = document.createElement('div');
+            dialog.className = 'modal fade';
+            dialog.innerHTML = `
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">导入知识图谱</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label class="form-label">选择JSON文件：</label>
+                                <input type="file" class="form-control" id="importFile" accept=".json">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">或粘贴JSON数据：</label>
+                                <textarea class="form-control" id="importData" rows="10" placeholder='{"entities": [...], "relations": [...], "triples": [...]}'></textarea>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                            <button type="button" class="btn btn-primary" onclick="importKG()">导入</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(dialog);
+            const modal = new bootstrap.Modal(dialog);
+            modal.show();
+            
+            // 文件选择处理
+            document.getElementById('importFile').addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        document.getElementById('importData').value = e.target.result;
+                    };
+                    reader.readAsText(file);
+                }
+            });
+            
+            // 清理对话框
+            dialog.addEventListener('hidden.bs.modal', () => {
+                document.body.removeChild(dialog);
+            });
+        }
+
+        // 导入知识图谱
+        async function importKG() {
+            try {
+                const importData = document.getElementById('importData').value;
+                if (!importData.trim()) {
+                    updateStatus('[ERROR] 请提供导入数据', 'error');
+                    return;
+                }
+                
+                const parsedData = JSON.parse(importData);
+                
+                const response = await fetch('/api/kg/import', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({data: parsedData})
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    updateStatus(`[SUCCESS] ${data.message}`, 'success');
+                    await getKGInfo(); // 刷新显示
+                } else {
+                    updateStatus(`[ERROR] 导入失败: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                updateStatus(`[ERROR] 导入失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 显示统计报告
+        async function showStatistics() {
+            try {
+                const response = await fetch('/api/kg/statistics');
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    const stats = data.basic_stats;
+                    const topEntities = data.top_entities.slice(0, 5);
+                    const topRelations = data.top_relations.slice(0, 5);
+                    
+                    const dialog = document.createElement('div');
+                    dialog.className = 'modal fade';
+                    dialog.innerHTML = `
+                        <div class="modal-dialog modal-lg">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">知识图谱统计报告</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="row">
+                                        <div class="col-md-4 text-center">
+                                            <h4 class="text-primary">${stats.entity_count}</h4>
+                                            <p>实体数量</p>
+                                        </div>
+                                        <div class="col-md-4 text-center">
+                                            <h4 class="text-info">${stats.relation_count}</h4>
+                                            <p>关系数量</p>
+                                        </div>
+                                        <div class="col-md-4 text-center">
+                                            <h4 class="text-success">${stats.triple_count}</h4>
+                                            <p>三元组数量</p>
+                                        </div>
+                                    </div>
+                                    <hr>
+                                    <h6>最活跃的实体（前5）</h6>
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr><th>实体</th><th>出现次数</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            ${topEntities.map(e => `<tr><td>${e[0]}</td><td>${e[1]}</td></tr>`).join('')}
+                                        </tbody>
+                                    </table>
+                                    <h6>最常见的关系（前5）</h6>
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr><th>关系</th><th>出现次数</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            ${topRelations.map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join('')}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    document.body.appendChild(dialog);
+                    const modal = new bootstrap.Modal(dialog);
+                    modal.show();
+                    
+                    // 清理对话框
+                    dialog.addEventListener('hidden.bs.modal', () => {
+                        document.body.removeChild(dialog);
+                    });
+                } else {
+                    updateStatus(`[ERROR] 获取统计信息失败: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                updateStatus(`[ERROR] 获取统计信息失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 显示实体和关系列表
+        async function showEntitiesRelations() {
+            try {
+                const [entitiesResponse, relationsResponse] = await Promise.all([
+                    fetch('/api/kg/entities'),
+                    fetch('/api/kg/relations')
+                ]);
+                
+                const entitiesData = await entitiesResponse.json();
+                const relationsData = await relationsResponse.json();
+                
+                if (entitiesData.status === 'success' && relationsData.status === 'success') {
+                    const dialog = document.createElement('div');
+                    dialog.className = 'modal fade';
+                    dialog.innerHTML = `
+                        <div class="modal-dialog modal-lg">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">实体和关系列表</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <h6>实体列表 (${entitiesData.count})</h6>
+                                    <div class="mb-3" style="max-height: 300px; overflow-y: auto;">
+                                        <div class="row">
+                                            ${entitiesData.entities.map(e => 
+                                                `<div class="col-md-6 mb-2">
+                                                    <div class="d-flex align-items-center p-2 bg-light rounded">
+                                                        <img src="${e.image_url || 'https://www.scholat.com/images/scholat_logo.png'}" 
+                                                             alt="${e.name}" 
+                                                             class="rounded me-2"
+                                                             style="width: 30px; height: 30px; object-fit: cover;"
+                                                             onerror="this.src='https://www.scholat.com/images/scholat_logo.png'">
+                                                        <div class="flex-grow-1">
+                                                            <small class="fw-bold">${e.name}</small>
+                                                            <div class="text-muted" style="font-size: 11px;">
+                                                                H:${e.head_count} T:${e.tail_count} Total:${e.total_count}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>`
+                                            ).join('')}
+                                        </div>
+                                    </div>
+                                    <h6>关系列表 (${relationsData.count})</h6>
+                                    <div style="max-height: 200px; overflow-y: auto;">
+                                        ${relationsData.relations.map(r => 
+                                            `<span class="badge bg-info m-1">${r.name} (${r.count})</span>`
+                                        ).join('')}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    document.body.appendChild(dialog);
+                    const modal = new bootstrap.Modal(dialog);
+                    modal.show();
+                    
+                    // 清理对话框
+                    dialog.addEventListener('hidden.bs.modal', () => {
+                        document.body.removeChild(dialog);
+                    });
+                } else {
+                    updateStatus('[ERROR] 获取实体关系列表失败', 'error');
+                }
+            } catch (error) {
+                updateStatus(`[ERROR] 获取实体关系列表失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 搜索表单提交
+        document.getElementById('searchForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const query = document.getElementById('searchQuery').value;
+            const searchType = document.getElementById('searchType').value;
+            
+            try {
+                const response = await fetch('/api/kg/search_triples', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({query, type: searchType})
+                });
+                
+                const data = await response.json();
+                const resultsDiv = document.getElementById('searchResults');
+                
+                if (data.status === 'success') {
+                    resultsDiv.innerHTML = `
+                        <h6 class="mt-3">搜索结果 (${data.count})</h6>
+                        ${data.results.map(r => `
+                            <div class="result-item fade-in">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span><strong>${r.head}</strong> → <strong>${r.relation}</strong> → <strong>${r.tail}</strong></span>
+                                    <button class="btn btn-sm btn-danger" onclick="deleteTriple('${r.head}', '${r.relation}', '${r.tail}')">删除</button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    `;
+                } else {
+                    resultsDiv.innerHTML = `<div class="alert alert-danger">${data.message}</div>`;
+                }
+            } catch (error) {
+                updateStatus(`[ERROR] 搜索失败: ${error.message}`, 'error');
+            }
+        });
+
+        // 删除三元组
+        async function deleteTriple(head, relation, tail) {
+            if (!confirm(`确定要删除这个三元组吗？\n${head} → ${relation} → ${tail}`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/kg/delete_triple', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({head, relation, tail})
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    updateStatus('[SUCCESS] 三元组删除成功', 'success');
+                    await getKGInfo(); // 刷新显示
+                    // 重新执行搜索以更新搜索结果
+                    document.getElementById('searchForm').dispatchEvent(new Event('submit'));
+                } else {
+                    updateStatus(`[ERROR] 删除失败: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                updateStatus(`[ERROR] 删除失败: ${error.message}`, 'error');
             }
         }
 
